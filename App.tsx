@@ -167,6 +167,7 @@ const App: React.FC = () => {
         } catch (e) { return null; }
     });
 
+    const [users, setUsers] = useState<User[]>([]);
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -399,8 +400,14 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        // FORCE CACHE BUSTING FOR THEME
+        // Remove old 'theme' key to prevent 'light' mode sticking
+        localStorage.removeItem('theme');
+        // Set new key to ensure future persistence starts fresh
+        localStorage.setItem('theme_v2', 'dark');
+
         document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
     }, []);
 
     useEffect(() => {
