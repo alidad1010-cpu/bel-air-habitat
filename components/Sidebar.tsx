@@ -122,6 +122,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
             <LogOut size={20} />
             <span className="font-medium">Déconnexion</span>
           </button>
+
+          <div className="mt-4 text-center">
+            <p className="text-[10px] text-slate-600 dark:text-slate-500 font-mono opacity-50">
+              v1.3.0
+            </p>
+          </div>
         </div>
       </aside>
     </>

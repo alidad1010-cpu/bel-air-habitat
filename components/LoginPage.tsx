@@ -171,7 +171,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           © 2025 Bel Air Habitat. Tous droits réservés.
         </p>
         <p className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-gray-400 uppercase tracking-widest">
-          930 674 932 R.C.S. Pontoise • v1.2.0 (High Contrast)
+          930 674 932 R.C.S. Pontoise • v1.3.0 (Dark Mode & UX Overhaul)
         </p>
       </div>
 
