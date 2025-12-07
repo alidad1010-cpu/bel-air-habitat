@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Bel Air Habitat - Espace Pro</title>
+
+  <!-- PWA Setup -->
+  <link rel="manifest" href="/manifest.json?v=13">
+  <meta name="theme-color" content="#10b981">
+  <link rel="icon" href="/favicon.ico?v=13" sizes="any">
+  <link rel="icon" type="image/png" href="/logo.png?v=13">
+  <link rel="apple-touch-icon" href="/logo.png?v=13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- 1. NETWORK & DNS OPTIMIZATION (Critical for First Load) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+
+  <!-- 2. ASSET PRELOADING (Eliminate Download Waterfall) -->
+  <link rel="preload" as="image"
+    href="https://cdn.prod.website-files.com/6279383071a695621116a3bb/66aa3dc06cc8b3e76941f8a3_Final-logo.png"
+    fetchpriority="high">
+
+  <!-- 3. JS MODULE PRELOADING (React Engine Warm-up) -->
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+    "firebase/storage": "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+  }
+}
+</script>
+  <link rel="modulepreload" href="https://aistudiocdn.com/react@^19.2.0/">
+  <link rel="modulepreload" href="https://aistudiocdn.com/react-dom@^19.2.0/">
+
+  <!-- 4. DEFERRED NON-CRITICAL RESOURCES -->
+  <script src="https://cdn.tailwindcss.com" defer></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: { 850: '#151f2e', 900: '#0f172a', 950: '#020617' }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- LEAFLET MAPS (Carte des Chantiers) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* 5. CRITICAL CSS: Inlined to render INSTANTLY before JS/Tailwind loads */
+    :root {
+      --bg-color: #f3f4f6;
+      --sidebar-bg: #0f172a;
+      --header-bg: rgba(255, 255, 255, 0.8);
+      --text-color: #1e293b;
+      --border-color: #e2e8f0;
+    }
+
+    /* Dark Mode System Preference Match */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #0f172a;
+        /* Slate 900 */
+        --sidebar-bg: #020617;
+        /* Slate 950 */
+        --header-bg: rgba(30, 41, 59, 0.8);
+        /* Slate 800 */
+        --text-color: #f8fafc;
+        --border-color: #334155;
+      }
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      touch-action: manipulation;
+      /* Removes 300ms tap delay on mobile */
+    }
+
+    /* APP SHELL LAYOUT - PIXEL PERFECT MATCH TO REACT */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      contain: strict;
+    }
+
+    .shell-sidebar {
+      width: 256px;
+      /* w-64 */
+      background-color: var(--sidebar-bg);
+      height: 100%;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
+    .shell-main {
+      flex: 1;
+      background-color: var(--bg-color);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .shell-header {
+      height: 73px;
+      /* Matches Header Height */
+      background-color: var(--header-bg);
+      border-bottom: 1px solid var(--border-color);
+      width: 100%;
+      box-sizing: border-box;
+      backdrop-filter: blur(12px);
+    }
+
+    .shell-logo {
+      width: auto;
+      height: 64px;
+      margin-bottom: 8px;
+      opacity: 0.9;
+      filter: brightness(0) invert(1);
+      /* White logo */
+      display: block;
+      /* Ensure it takes space */
+    }
+
+    /* Skeletons */
+    .sk-item {
+      width: 100%;
+      height: 48px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .sk-content {
+      padding: 32px;
+    }
+
+    .sk-card {
+      width: 100%;
+      height: 200px;
+      background-color: rgba(100, 100, 100, 0.05);
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+
+    .shell-mobile-only {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .shell-sidebar {
+        display: none;
+      }
+
+      .shell-mobile-only {
+        display: block;
+        height: 72px;
+        background: var(--header-bg);
+        width: 100%;
+        border-bottom: 1px solid var(--border-color);
+      }
+    }
+
+    /* Hides elements during print */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+
+      #root,
+      #root * {
+        visibility: visible;
+      }
+
+      .print\:hidden {
+        display: none !important;
+      }
+    }
+
+    /* Performance Optimization Classes */
+    .content-visible {
+      content-visibility: auto;
+      contain-intrinsic-size: 1px 50px;
+    }
+  </style>
+
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root">
+    <!-- APP SHELL: DISPLAYS INSTANTLY (0.05s) -->
+    <div class="app-shell" id="app-shell">
+      <div class="shell-sidebar">
+        <img src="https://cdn.prod.website-files.com/6279383071a695621116a3bb/66aa3dc06cc8b3e76941f8a3_Final-logo.png"
+          class="shell-logo" alt="Bel Air" fetchpriority="high">
+        <div style="margin-top: 30px;">
+          <div class="sk-item"></div>
+          <div class="sk-item"></div>
+          <div class="sk-item"></div>
+        </div>
+      </div>
+      <div class="shell-main">
+        <div class="shell-header"></div>
+        <div class="shell-mobile-only"></div>
+        <div class="sk-content">
+          <div class="sk-card"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

@@ -1,0 +1,13 @@
+{
+  "projects": {},
+  "targets": {
+    "bel-air-habitat": {
+      "hosting": {
+        "espace-pro": [
+          "bel-air-espace-pro"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
