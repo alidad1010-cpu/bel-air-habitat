@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { LayoutDashboard, Users, Settings, LogOut, X, CheckSquare, Wifi, WifiOff, HardHat, FileText, Building2, Handshake } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, X, CheckSquare, Wifi, WifiOff, HardHat, FileText, Building2, Handshake, Calendar, Briefcase } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -18,11 +18,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
   const displayMenu: { id: string; icon: React.ElementType; label: string }[] = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
     { id: 'tasks', icon: CheckSquare, label: 'Mes Tâches' }, // Moved up as requested
-    { id: 'agenda', icon: React.lazy(() => import('lucide-react').then(m => ({ default: m.Calendar }))), label: 'Agenda' },
-    { id: 'projects', icon: React.lazy(() => import('lucide-react').then(m => ({ default: m.Briefcase }))), label: 'Dossiers' },
+    { id: 'agenda', icon: Calendar, label: 'Agenda' },
+    { id: 'projects', icon: Briefcase, label: 'Dossiers' },
     { id: 'clients', icon: Users, label: 'Clients' },
     { id: 'partners', icon: Handshake, label: 'Partenaires' },
-    { id: 'employees', icon: React.lazy(() => import('lucide-react').then(m => ({ default: m.HardHat }))), label: 'Salariés' },
+    { id: 'employees', icon: HardHat, label: 'Salariés' },
     { id: 'administrative', icon: Building2, label: 'Administratif' },
     { id: 'settings', icon: Settings, label: 'Paramètres' },
   ];
@@ -77,10 +77,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
                   }`}
               >
-                {/* @ts-ignore - Dynamic icon rendering */}
-                <React.Suspense fallback={<div className="w-5 h-5" />}>
-                  <item.icon size={20} className={`transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-emerald-400'}`} />
-                </React.Suspense>
+                {/* Direct icon rendering */}
+                <item.icon size={20} className={`transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-emerald-400'}`} />
                 <span className="font-medium">{item.label}</span>
               </button>
             );

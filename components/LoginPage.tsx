@@ -6,7 +6,7 @@ interface LoginPageProps {
   onLogin: (u: string, p: string) => boolean;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -64,7 +64,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-md p-6 mx-4">
-        <div className="glass-card-dark rounded-3xl overflow-hidden">
+        <div className="glass-card-dark rounded-3xl overflow-hidden animate-fade-in-up">
 
           {/* Header */}
           <div className="p-8 pb-0 text-center">

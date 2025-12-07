@@ -1669,6 +1669,72 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
                                     </div>
                                 </div>
                             </div>
+
+                            {/* TENANT / LOCATAIRE SECTION */}
+                            <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                                <h3 className={sectionTitleClass}><User size={18} className="mr-2" /> Locataire (Optionnel)</h3>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className={labelClass}>Nom du Locataire</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.tenant?.name || ''}
+                                                    onChange={e => setFormData(prev => ({ ...prev, tenant: { ...(prev.tenant || {}), name: e.target.value } }))}
+                                                    className={inputClass}
+                                                    placeholder="Nom complet"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}>Notes privées</label>
+                                                <textarea
+                                                    value={formData.tenant?.notes || ''}
+                                                    onChange={e => setFormData(prev => ({ ...prev, tenant: { ...(prev.tenant || { name: '' }), notes: e.target.value } }))}
+                                                    className={inputClass}
+                                                    placeholder="Disponibilités, instructions..."
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className={labelClass}>Téléphone</label>
+                                                <div className="flex space-x-2">
+                                                    <input
+                                                        type="tel"
+                                                        value={formData.tenant?.phone || ''}
+                                                        onChange={e => setFormData(prev => ({ ...prev, tenant: { ...(prev.tenant || { name: '' }), phone: e.target.value } }))}
+                                                        className={inputClass}
+                                                        placeholder="06..."
+                                                    />
+                                                    {formData.tenant?.phone && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const cleanPhone = formData.tenant?.phone?.replace(/[^0-9+]/g, '');
+                                                                if (cleanPhone) window.open(`https://wa.me/${cleanPhone}`, '_blank');
+                                                            }}
+                                                            className="bg-green-500 hover:bg-green-600 text-white p-2.5 rounded-lg transition-colors flex items-center justify-center"
+                                                            title="WhatsApp"
+                                                        >
+                                                            <MessageCircle size={20} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}>Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={formData.tenant?.email || ''}
+                                                    onChange={e => setFormData(prev => ({ ...prev, tenant: { ...(prev.tenant || { name: '' }), email: e.target.value } }))}
+                                                    className={inputClass}
+                                                    placeholder="email@exemple.com"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 

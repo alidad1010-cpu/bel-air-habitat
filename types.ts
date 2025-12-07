@@ -62,6 +62,21 @@ export interface ClientDocument {
 
 export type ClientType = 'PARTICULIER' | 'ENTREPRISE' | 'ARCHITECTE' | 'SYNDIC' | 'SOUS_TRAITANT' | 'PARTENAIRE';
 
+export interface Tenant {
+  name: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+  role?: string; // e.g. "Gestionnaire", "Comptable", "Directeur"
+  email?: string;
+  phone?: string;
+}
+
 export interface Client {
   id?: string;
   name: string;
@@ -84,6 +99,8 @@ export interface Client {
     door?: string; // "Port" / Porte
     alarmCode?: string;
   };
+  tenant?: Tenant; // Optional "Locataire"
+  contacts?: Contact[]; // "Interlocuteurs"
 }
 
 export interface CommercialInfo {
@@ -142,6 +159,7 @@ export interface Project {
   title: string;
   description: string;
   client: Client;
+  tenant?: Tenant; // Specific tenant for this project/folder
   status: ProjectStatus;
   contactMethod: ContactMethod;
   createdAt: number;
@@ -276,7 +294,6 @@ export interface Employee {
   ssn?: string; // Numéro sécu / Carte vitale
   address?: string;
   birthDate?: string;
-  notes?: string;
   documents?: EmployeeDocument[];
   isActive: boolean; // Employé actuel ou ancien
 }
