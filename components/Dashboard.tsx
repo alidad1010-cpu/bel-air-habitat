@@ -379,8 +379,8 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, onNavigate, notes = [],
                     <div className="flex bg-white dark:bg-slate-900/50 dark:bg-slate-900/50 backdrop-blur-md p-1.5 rounded-xl border border-white/20 shadow-sm">
                         <button onClick={() => onNavigate('tasks')} className="px-4 py-2 rounded-lg text-slate-700 dark:text-slate-200 dark:text-white font-bold hover:bg-white dark:bg-slate-900 dark:hover:bg-slate-700 hover:shadow-sm transition-all flex items-center"><CheckSquare size={18} className="mr-2" /> Tâches</button>
                         <div className="w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
-                        <button onClick={() => setViewMode('LIST')} className={`p-2 rounded-lg transition-all ${viewMode === 'LIST' ? 'bg-white dark:bg-slate-900 dark:bg-slate-800 shadow text-indigo-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-indigo-500'}`}><List size={20} /></button>
-                        <button onClick={() => setViewMode('MAP')} className={`p-2 rounded-lg transition-all ${viewMode === 'MAP' ? 'bg-white dark:bg-slate-900 dark:bg-slate-800 shadow text-indigo-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-indigo-500'}`}><Map size={20} /></button>
+                        <button onClick={() => setViewMode('LIST')} className={`p-2 rounded-lg transition-all ${viewMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow text-indigo-600 dark:text-white' : 'text-slate-700 dark:text-slate-200 hover:text-indigo-500'}`}><List size={20} /></button>
+                        <button onClick={() => setViewMode('MAP')} className={`p-2 rounded-lg transition-all ${viewMode === 'MAP' ? 'bg-white dark:bg-slate-800 shadow text-indigo-600 dark:text-white' : 'text-slate-700 dark:text-slate-200 hover:text-indigo-500'}`}><Map size={20} /></button>
                     </div>
                 </div>
 

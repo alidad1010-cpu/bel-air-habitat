@@ -867,7 +867,7 @@ const App: React.FC = () => {
                         {/* Mobile Menu Button */}
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="md:hidden p-2 mr-2 text-slate-600 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            className="p-2 mr-2 text-white hover:bg-slate-800 rounded-lg md:hidden transition-colors"
                         >
                             <Menu size={24} />
                         </button>

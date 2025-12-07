@@ -53,16 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
                 <img
                   src="https://cdn.prod.website-files.com/6279383071a695621116a3bb/66aa3dc06cc8b3e76941f8a3_Final-logo.png"
                   alt="Bel Air Habitat"
-                  width="200"
-                  height="64"
-                  fetchPriority="high"
-                  decoding="async"
                   className="h-12 w-auto object-contain brightness-0 invert drop-shadow-md"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const fallback = document.getElementById('logo-fallback-sidebar');
-                    if (fallback) fallback.style.display = 'block';
-                  }}
                 />
                 {/* Fallback Text */}
                 <div id="logo-fallback-sidebar" style={{ display: 'none' }}>
