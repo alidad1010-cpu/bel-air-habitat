@@ -7,35 +7,32 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
-      const cleanUsername = username.trim();
+      // Adapt to use the existing signIn function from firebaseService
+      const cleanEmail = email.trim();
       const cleanPassword = password.trim();
-      const emailToUse = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@belairhabitat.com`;
+      const emailToUse = cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@belairhabitat.com`;
       await signIn(emailToUse, cleanPassword);
-
-      // FIX: Notify parent immediately to trigger optimistic UI update
-      // This prevents the "nothing happens" glitch
-      onLogin(emailToUse, password);
-      // App.tsx will detect auth change and unmount this component.
-      // Keeping isLoading=true prevents the form from jittering before redirect.
+      // If signIn is successful, the App.tsx (or parent) should detect the auth change
+      // and redirect, so no explicit onLogin call here.
     } catch (firebaseError: any) {
-      console.warn("Firebase Auth Failed", firebaseError);
+      console.error("Firebase Auth Failed", firebaseError);
       let msg = "Identifiants incorrects ou compte inconnu.";
       if (typeof firebaseError === 'object' && firebaseError !== null) {
         const code = firebaseError.code;
-        const message = firebaseError.message || '';
+        // const message = firebaseError.message || ''; // Not used in this error handling
 
         if (code === 'auth/network-request-failed') {
           msg = "Erreur de connexion internet.";
@@ -84,7 +81,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
           {/* Form */}
           <div className="p-8 pt-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleLogin} className="space-y-5">
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-xl text-sm flex items-start animate-in fade-in slide-in-from-top-2">
                   <AlertCircle size={18} className="mr-2 flex-shrink-0 mt-0.5 text-red-400" />
@@ -100,8 +97,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   </div>
                   <input
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="block w-full pl-11 pr-4 py-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all text-base"
                     placeholder="votre@email.com"
                     required
