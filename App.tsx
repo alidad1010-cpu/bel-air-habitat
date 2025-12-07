@@ -234,7 +234,14 @@ const App: React.FC = () => {
         return 'dashboard';
     });
 
-    // MOBILE HISTORY SYNC (SWIPE TO BACK)
+    // MOBILE SIDEBAR STATE
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [prefillClient, setPrefillClient] = useState<Client | null>(null);
+
     // MOBILE HISTORY SYNC (SWIPE TO BACK)
     const isPopping = useRef(false);
 
@@ -275,14 +282,6 @@ const App: React.FC = () => {
             window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
         }
     }, [activeTab, selectedProject]);
-
-    // MOBILE SIDEBAR STATE
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const [prefillClient, setPrefillClient] = useState<Client | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [globalSearchResults, setGlobalSearchResults] = useState<{ projects: Project[], clients: Client[] } | null>(null);
     const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'ALL'>('ALL');
