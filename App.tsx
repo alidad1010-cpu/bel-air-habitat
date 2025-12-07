@@ -2,6 +2,13 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Plus, ChevronLeft, ChevronRight, Search, LayoutList, Kanban, Loader2, Wifi, WifiOff, RefreshCw, Menu, RotateCw, AlertTriangle, X } from 'lucide-react';
+import * as Sentry from "@sentry/react";
+
+Sentry.init({
+    dsn: "YOUR_SENTRY_DSN_HERE", // Replace with your actual Sentry DSN
+    integrations: [],
+});
+
 import Sidebar from './components/Sidebar';
 import UserProfileModal from './components/UserProfileModal';
 import LoginPage from './components/LoginPage';
@@ -228,27 +235,46 @@ const App: React.FC = () => {
     });
 
     // MOBILE HISTORY SYNC (SWIPE TO BACK)
+    // MOBILE HISTORY SYNC (SWIPE TO BACK)
     const isPopping = useRef(false);
 
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
+            isPopping.current = true;
+
+            // 1. Restore Tab
             if (event.state?.tab) {
-                isPopping.current = true;
                 setActiveTab(event.state.tab);
+            }
+
+            // 2. Restore Project Selection (or deselect)
+            if (event.state?.selectedProjectId) {
+                const proj = projects.find(p => p.id === event.state.selectedProjectId);
+                if (proj) setSelectedProject(proj);
+            } else {
+                setSelectedProject(null);
             }
         };
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, []);
+    }, [projects]); // Depend on projects to find the project by ID
 
+    // Sync Active Tab to URL (Basic validation)
     useEffect(() => {
         if (isPopping.current) {
             isPopping.current = false;
             return;
         }
-        window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
-    }, [activeTab]);
+
+        // If we have a selected project, the URL/History should reflect that
+        if (selectedProject) {
+            window.history.pushState({ tab: activeTab, selectedProjectId: selectedProject.id }, '', `#${activeTab}/project/${selectedProject.id}`);
+        } else {
+            // Otherwise just the tab
+            window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
+        }
+    }, [activeTab, selectedProject]);
 
     // MOBILE SIDEBAR STATE
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);

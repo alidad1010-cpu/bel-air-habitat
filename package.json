@@ -8,7 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "publish": "npm run build && git add . && git commit --allow-empty -m \"Auto-update\" && git push",
-    "turbo": "npm run build && npx firebase deploy --only hosting --project bel-air-habitat"
+    "turbo": "npm run build && npx firebase deploy --only hosting --project bel-air-habitat",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write .",
+    "test": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
@@ -20,16 +24,32 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@sentry/react": "^10.29.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.48.1",
+    "@typescript-eslint/parser": "^8.48.1",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.17",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
     "firebase-tools": "^14.27.0",
+    "globals": "^16.5.0",
+    "jsdom": "^27.2.0",
     "postcss": "^8.4.35",
+    "prettier": "^3.7.4",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.48.1",
     "vite": "^6.2.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.0.15"
   }
 }
