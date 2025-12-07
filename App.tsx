@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Plus, ChevronLeft, ChevronRight, Search, LayoutList, Kanban, Loader2, Wifi, WifiOff, RefreshCw, Menu, RotateCw, AlertTriangle, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
@@ -224,6 +224,29 @@ const App: React.FC = () => {
         if (typeof window !== 'undefined') return sessionStorage.getItem('lastActiveTab') || 'dashboard';
         return 'dashboard';
     });
+
+    // MOBILE HISTORY SYNC (SWIPE TO BACK)
+    const isPopping = useRef(false);
+
+    useEffect(() => {
+        const handlePopState = (event: PopStateEvent) => {
+            if (event.state?.tab) {
+                isPopping.current = true;
+                setActiveTab(event.state.tab);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    useEffect(() => {
+        if (isPopping.current) {
+            isPopping.current = false;
+            return;
+        }
+        window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
+    }, [activeTab]);
 
     // MOBILE SIDEBAR STATE
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
