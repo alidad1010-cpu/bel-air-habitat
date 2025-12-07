@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="preconnect" href="https://firebasestorage.googleapis.com">
-  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+
 
   <!-- 2. ASSET PRELOADING (Eliminate Download Waterfall) -->
   <link rel="preload" as="image"
@@ -48,19 +48,7 @@
   <link rel="modulepreload" href="https://aistudiocdn.com/react-dom@^19.2.0/">
 
   <!-- 4. DEFERRED NON-CRITICAL RESOURCES -->
-  <script src="https://cdn.tailwindcss.com" defer></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            slate: { 850: '#151f2e', 900: '#0f172a', 950: '#020617' }
-          }
-        }
-      }
-    }
-  </script>
+
   <!-- LEAFLET MAPS (Carte des Chantiers) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />

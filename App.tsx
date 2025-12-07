@@ -26,19 +26,18 @@ const AdminPage = lazy(() => import('./components/AdminPage'));
 import { saveDocument, deleteDocument, subscribeToAuth, subscribeToCollection, where } from './services/firebaseService';
 
 // --- DATA SANITIZATION & STORAGE UTILITIES ---
-const sanitizeStorageData = (data: any, seen = new WeakSet(), depth = 0): any => {
+const sanitizeStorageData = (data: any, ancestors = new Set<any>(), depth = 0): any => {
     // 0. Depth limit to prevent stack overflow
-    if (depth > 10) return undefined;
+    if (depth > 20) return undefined;
 
     // 1. Primitive checks
     if (data === null || typeof data !== 'object') return data;
     if (data instanceof Date) return data.toISOString();
 
-    // 2. Cycle detection
-    if (seen.has(data)) return undefined;
-    seen.add(data);
+    // 2. Cycle detection (ANCESTORS ONLY - Allows DAGs/Shared Refs)
+    if (ancestors.has(data)) return undefined;
 
-    // 3. Duck typing for Firebase types (works even if minified)
+    // 3. Duck typing for Firebase types
     if (typeof data.toDate === 'function') {
         try { return data.toDate().toISOString(); } catch (e) { }
     }
@@ -56,12 +55,14 @@ const sanitizeStorageData = (data: any, seen = new WeakSet(), depth = 0): any =>
         data.$$typeof // React Element
     ) return undefined;
 
-    // 5. Array recursion
+    // 5. Recursion with Ancestors Tracking
+    const newAncestors = new Set(ancestors);
+    newAncestors.add(data);
+
     if (Array.isArray(data)) {
-        return data.map(item => sanitizeStorageData(item, seen, depth + 1));
+        return data.map(item => sanitizeStorageData(item, newAncestors, depth + 1));
     }
 
-    // 6. Object recursion
     const newObj: any = {};
     for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
@@ -69,7 +70,7 @@ const sanitizeStorageData = (data: any, seen = new WeakSet(), depth = 0): any =>
             if (
                 key.startsWith('__') ||
                 key.startsWith('_react') ||
-                key === 'src' || // 'src' often causes cycles in DOM-like objects
+                // 'src' REMOVED from blacklist to allow images/iframes
                 key === 'source' ||
                 key === 'view' ||
                 key === 'ownerDocument' ||
@@ -78,7 +79,7 @@ const sanitizeStorageData = (data: any, seen = new WeakSet(), depth = 0): any =>
                 typeof data[key] === 'function'
             ) continue;
 
-            const val = sanitizeStorageData(data[key], seen, depth + 1);
+            const val = sanitizeStorageData(data[key], newAncestors, depth + 1);
             if (val !== undefined) newObj[key] = val;
         }
     }
@@ -859,9 +860,9 @@ const App: React.FC = () => {
                 onClose={() => setIsSidebarOpen(false)}
             />
 
-            <main className="flex-1 md:ml-64 bg-slate-50 dark:bg-slate-950 overflow-x-hidden min-h-screen relative w-full">
+            <main className="flex-1 md:ml-64 bg-transparent overflow-x-hidden min-h-screen relative w-full">
                 {/* HEADER */}
-                <div className="sticky top-0 z-30 bg-white dark:bg-slate-950 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-4 flex justify-between items-center print:hidden shadow-sm">
+                <div className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/50 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-4 md:px-8 py-4 flex justify-between items-center print:hidden shadow-sm">
                     <div className="flex items-center space-x-2 md:space-x-4 flex-1">
 
                         {/* Mobile Menu Button */}

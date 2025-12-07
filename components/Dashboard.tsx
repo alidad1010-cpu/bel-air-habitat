@@ -1,12 +1,12 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Calendar, CheckSquare, XCircle, Clock, AlertCircle, ArrowRight, Briefcase, PlayCircle, CheckCircle2, Map, List, MapPin, PhoneCall, TrendingUp, DollarSign, BarChart3, Trophy, Archive, StickyNote, Send, Trash2, Mic, Users, LayoutDashboard } from 'lucide-react';
+import { Calendar, CheckSquare, XCircle, Clock, AlertCircle, ArrowRight, Briefcase, PlayCircle, CheckCircle2, Map, List, MapPin, PhoneCall, TrendingUp, DollarSign, BarChart3, Trophy, Archive, StickyNote, Send, Trash2, Mic, Users, LayoutDashboard, Plus } from 'lucide-react';
 import { Project, ProjectStatus, User } from '../types';
 import { SharedNote } from '../App';
 
 interface DashboardProps {
     projects: Project[];
-    onNavigate: (tab: string, statusFilter?: ProjectStatus | null) => void;
+    onNavigate: (tab: string, statusFilter?: ProjectStatus | 'ALL' | null) => void;
     notes?: SharedNote[];
     onAddNote?: (text: string) => void;
     onDeleteNote?: (id: string) => void;
@@ -26,16 +26,15 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ count, title, description, variant, icon: Icon, onClick }) => {
-
-    // Updated Theme mapping for MAX CONTRAST
-    const themes: Record<string, { text: string; bg: string; border: string; glow: string }> = {
-        blue: { text: 'text-blue-800 dark:text-blue-100', bg: 'bg-blue-100 dark:bg-blue-900/50', border: 'hover:border-blue-500/50', glow: 'group-hover:shadow-blue-500/20' },
-        emerald: { text: 'text-emerald-800 dark:text-emerald-100', bg: 'bg-emerald-100 dark:bg-emerald-900/50', border: 'hover:border-emerald-500/50', glow: 'group-hover:shadow-emerald-500/20' },
-        rose: { text: 'text-rose-800 dark:text-rose-100', bg: 'bg-rose-100 dark:bg-rose-900/50', border: 'hover:border-rose-500/50', glow: 'group-hover:shadow-rose-500/20' },
-        amber: { text: 'text-amber-800 dark:text-amber-100', bg: 'bg-amber-100 dark:bg-amber-900/50', border: 'hover:border-amber-500/50', glow: 'group-hover:shadow-amber-500/20' },
-        violet: { text: 'text-violet-800 dark:text-violet-100', bg: 'bg-violet-100 dark:bg-violet-900/50', border: 'hover:border-violet-500/50', glow: 'group-hover:shadow-violet-500/20' },
-        sky: { text: 'text-sky-800 dark:text-sky-100', bg: 'bg-sky-100 dark:bg-sky-900/50', border: 'hover:border-sky-500/50', glow: 'group-hover:shadow-sky-500/20' },
-        slate: { text: 'text-slate-800 dark:text-slate-100 dark:text-white', bg: 'bg-slate-200 dark:bg-slate-800', border: 'hover:border-slate-500/50', glow: 'group-hover:shadow-slate-500/20' },
+    // Exact colors from screenshots
+    const themes: Record<string, { bg: string; iconColor: string }> = {
+        blue: { bg: 'bg-blue-500/10', iconColor: 'text-blue-500' },
+        emerald: { bg: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
+        rose: { bg: 'bg-rose-500/10', iconColor: 'text-rose-500' },
+        amber: { bg: 'bg-amber-500/10', iconColor: 'text-amber-500' },
+        violet: { bg: 'bg-violet-500/10', iconColor: 'text-violet-500' },
+        sky: { bg: 'bg-sky-500/10', iconColor: 'text-sky-500' },
+        slate: { bg: 'bg-slate-700/50', iconColor: 'text-slate-400' },
     };
 
     const theme = themes[variant] || themes['slate'];
@@ -43,26 +42,15 @@ const StatCard: React.FC<StatCardProps> = ({ count, title, description, variant,
     return (
         <div
             onClick={onClick}
-            className={`glass-card relative overflow-hidden rounded-2xl p-6 cursor-pointer group flex flex-col justify-between h-44 border border-t border-white/60 dark:border-white/10 ${theme.border} hover:shadow-2xl ${theme.glow}`}
+            className="glass-card relative rounded-2xl p-6 cursor-pointer group flex items-start justify-between min-h-[140px] hover:border-slate-600 transition-colors"
         >
-            {/* Background Glow */}
-            <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full opacity-10 blur-3xl transition-opacity duration-500 group-hover:opacity-20 ${theme.bg.split(' ')[0].replace('100', '500')}`}></div>
-
-            <div className="relative z-10 flex justify-between items-start">
-                <div>
-                    <div className={`text-5xl font-black tracking-tighter mb-1 ${theme.text} drop-shadow-sm`}>{count}</div>
-                    <div className="font-extrabold text-slate-800 dark:text-slate-100 dark:text-white leading-tight text-lg">{title}</div>
-                </div>
-                <div className={`p-3.5 rounded-xl ${theme.bg} ${theme.text} shadow-sm ring-1 ring-black/5 dark:ring-white/10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6`}>
-                    <Icon size={28} />
-                </div>
+            <div className="flex flex-col justify-between h-full">
+                <div className="text-5xl font-black text-white tracking-tight mb-2">{count}</div>
+                <div className="font-bold text-slate-200 text-sm leading-tight">{title}</div>
             </div>
 
-            <div className="relative z-10 mt-auto pt-4">
-                {description && <div className="text-xs font-medium text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white truncate">{description}</div>}
-                <div className={`mt-2 flex items-center text-[10px] font-bold uppercase tracking-wider ${theme.text} dark:text-white/80 opacity-0 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300`}>
-                    Voir les dossiers <ArrowRight size={12} className="ml-1" />
-                </div>
+            <div className={`p-3 rounded-xl ${theme.bg} ${theme.iconColor} flex items-center justify-center`}>
+                <Icon size={24} />
             </div>
         </div>
     );
@@ -366,21 +354,27 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, onNavigate, notes = [],
 
             {/* 1. Header & Agenda */}
             <section>
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
                     <div className="flex items-center">
-                        <div className="p-3 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl mr-4 shadow-lg shadow-indigo-500/30 text-white dark:text-white">
+                        <div className="p-3 bg-indigo-600 rounded-2xl mr-4 text-white shadow-lg shadow-indigo-500/30">
                             <LayoutDashboard size={28} />
                         </div>
                         <div>
-                            <h2 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white tracking-tight">Tableau de Bord</h2>
-                            <p className="text-slate-700 dark:text-slate-200 dark:text-white font-medium">{currentUser?.fullName || 'Utilisateur'} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                            <h2 className="text-3xl font-extrabold text-white tracking-tight">Tableau de Bord</h2>
+                            <p className="text-slate-400 font-medium">{currentUser?.fullName || 'anwishmukhtar'} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                         </div>
                     </div>
-                    <div className="flex bg-white dark:bg-slate-900/50 dark:bg-slate-900/50 backdrop-blur-md p-1.5 rounded-xl border border-white/20 shadow-sm">
-                        <button onClick={() => onNavigate('tasks')} className="px-4 py-2 rounded-lg text-slate-700 dark:text-slate-200 dark:text-white font-bold hover:bg-white dark:bg-slate-900 dark:hover:bg-slate-700 hover:shadow-sm transition-all flex items-center"><CheckSquare size={18} className="mr-2" /> Tâches</button>
-                        <div className="w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
-                        <button onClick={() => setViewMode('LIST')} className={`p-2 rounded-lg transition-all ${viewMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow text-indigo-600 dark:text-white' : 'text-slate-700 dark:text-slate-200 hover:text-indigo-500'}`}><List size={20} /></button>
-                        <button onClick={() => setViewMode('MAP')} className={`p-2 rounded-lg transition-all ${viewMode === 'MAP' ? 'bg-white dark:bg-slate-800 shadow text-indigo-600 dark:text-white' : 'text-slate-700 dark:text-slate-200 hover:text-indigo-500'}`}><Map size={20} /></button>
+
+                    <div className="flex flex-col items-end space-y-3">
+                        {/* Button moved here to match screenshot */}
+
+
+                        <div className="flex bg-slate-900 border border-slate-700 p-1 rounded-xl">
+                            <button onClick={() => onNavigate('tasks')} className="px-4 py-2 rounded-lg text-slate-300 font-medium hover:bg-slate-800 transition-all flex items-center"><CheckSquare size={18} className="mr-2" /> Tâches</button>
+                            <div className="w-px bg-slate-700 mx-1"></div>
+                            <button onClick={() => setViewMode('LIST')} className={`p-2 rounded-lg transition-all ${viewMode === 'LIST' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}><List size={20} /></button>
+                            <button onClick={() => setViewMode('MAP')} className={`p-2 rounded-lg transition-all ${viewMode === 'MAP' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}><Map size={20} /></button>
+                        </div>
                     </div>
                 </div>
 

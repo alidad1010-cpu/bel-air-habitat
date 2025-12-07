@@ -1,102 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Global Styles & Premium Glassmorphism 2025 */
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* SOLID WHITE FOR LIGHT MODE - NO TRANSPARENCY */
-  --glass-border: #e2e8f0;
-  /* Solid border slate-200 */
-  --glass-bg: #ffffff;
-  /* pure white */
-  --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  /* LIGHT MODE: Crisp Porcelain */
+  --glass-border: rgba(226, 232, 240, 0.8);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --primary-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
 }
 
 .dark {
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(15, 23, 42, 0.95);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  /* DARK MODE: Deep Cosmos */
+  --glass-border: rgba(255, 255, 255, 0.08);
+  /* White alpha border for sharpness */
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  /* Translucent Midnight */
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  /* Deep ambient shadow */
 }
 
 body {
   font-family: 'Outfit', sans-serif;
-  background-color: #f1f5f9;
-  /* Solid slate-100 */
-  background-image: none;
-  /* REMOVE GRADIENT IMG FOR CLARITY */
-  background-attachment: fixed;
-  background-size: cover;
+  background-color: #f8fafc;
+  /* Slate 50 */
   color: #0f172a;
-  /* slate-900 for max contrast */
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  position: relative;
 }
 
-/* GLOBAL DARK MODE BACKGROUND */
+/* --- AMBIENT BACKGROUND SYSTEM (Dark Mode Only) --- */
 .dark body {
-  background-color: #020617 !important;
-  /* slate-950 */
-  color: #ffffff;
-}
-
-.dark body {
-  background-color: #0b1121;
-  /* Deep rich dark blue/black */
-  background-image:
-    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.15) 0px, transparent 60%),
-    radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 60%),
-    radial-gradient(at 50% 50%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+  background-color: #020617;
+  /* Midnight 950 */
   color: #f1f5f9;
+  /* Ambient Orbs via multiple background gradients */
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.08), transparent 25%),
+    /* Emerald Orb Left */
+    radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05), transparent 25%);
+  /* Gold Orb Right */
+  background-attachment: fixed;
 }
 
-/* --- Premium Glass Components --- */
+/* --- PREMIUM COMPONENTS --- */
 
+/* Sidebar: Frosted Glass */
 .glass-sidebar {
   background: rgba(15, 23, 42, 0.85);
-  /* Dark blue-slate opacity for legibility */
+  /* Legible dark base */
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 5px 0 25px rgba(0, 0, 0, 0.1);
+  border-right: 1px solid var(--glass-border);
+  box-shadow: 5px 0 30px rgba(0, 0, 0, 0.2);
 }
 
 .dark .glass-sidebar {
-  background: rgba(2, 6, 23, 0.9);
+  background: rgba(2, 6, 23, 0.7);
+  /* More transparent in dark mode for ambient bleed-through */
 }
 
+/* Panels/Modals: Standard Glass */
 .glass-panel {
   background: var(--glass-bg);
-  /* No backdrop filter needed for solid */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
+/* Cards: Interactive Glass */
 .glass-card {
-  background: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  /* Bouncy premium feel */
+  background: white;
+  border: 1px solid transparent;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .dark .glass-card {
-  background: #0f172a;
-  /* Fallback */
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  background: rgba(30, 41, 59, 0.6);
+  /* Translucent Slate 800 */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .glass-card:hover {
-  transform: translateY(-5px) scale(1.01);
-  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
-  border-color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
 }
 
 .dark .glass-card:hover {
-  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.05);
+  /* Subtle Emerald Glow */
 }
 
-/* --- Animations --- */
+/* --- ANIMATIONS --- */
 
 @keyframes badgePulse {
   0% {

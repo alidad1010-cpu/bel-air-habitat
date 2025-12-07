@@ -27,13 +27,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
     { id: 'settings', icon: Settings, label: 'Paramètres' },
   ];
 
-  const sidebarClasses = `
-    flex flex-col glass-sidebar text-white h-screen 
-    fixed left-0 top-0 overflow-y-auto z-50
-    transition-transform duration-300 ease-in-out
-    ${isOpen ? 'translate-x-0 w-64 shadow-2xl' : '-translate-x-full md:translate-x-0 w-64'}
-  `;
-
   return (
     <>
       {/* Mobile Backdrop */}
@@ -44,22 +37,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
         ></div>
       )}
 
-      <aside className="h-screen w-64 bg-slate-950 border-r border-slate-800 flex flex-col fixed left-0 top-0 z-20">
-        <div className="p-6 flex flex-col border-b border-white/10 relative">
+      <aside className={`h-screen w-64 glass-sidebar flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
+        <div className="p-6 flex flex-col relative">
           <div className="flex justify-between items-start">
             <div className="flex flex-col mb-4 w-full">
-              {/* LOGO SECTION - OPTIMIZED FOR VISIBILITY */}
-              <div className="bg-white dark:bg-slate-900/10 backdrop-blur-md p-3 rounded-xl self-start mb-2 border border-white/20 shadow-lg shadow-black/20">
+              {/* LOGO SECTION */}
+              <div className="p-3 self-start mb-2">
                 <img
                   src="https://cdn.prod.website-files.com/6279383071a695621116a3bb/66aa3dc06cc8b3e76941f8a3_Final-logo.png"
                   alt="Bel Air Habitat"
-                  className="h-12 w-auto object-contain brightness-0 invert drop-shadow-md"
+                  className="h-12 w-auto object-contain brightness-0 invert opacity-90"
                 />
-                {/* Fallback Text */}
-                <div id="logo-fallback-sidebar" style={{ display: 'none' }}>
-                  <h1 className="text-xl font-black tracking-tight text-white leading-none">BEL AIR</h1>
-                  <p className="text-[10px] font-semibold text-emerald-400 tracking-[0.25em] mt-1">HABITAT</p>
-                </div>
               </div>
             </div>
             {/* Close Button on Mobile */}
@@ -67,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
               <X size={24} />
             </button>
           </div>
-          <div className="text-[11px] text-slate-300 font-medium leading-relaxed pl-1 uppercase mt-2">
+          <div className="text-[11px] text-slate-400 font-medium leading-relaxed pl-1 uppercase mt-2 tracking-widest">
             19 B RUE DE LA TOURELLE<br />
             95170 DEUIL-LA-BARRE<br />
             SIREN : 930 674 932

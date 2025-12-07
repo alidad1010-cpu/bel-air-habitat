@@ -10,7 +10,24 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                // Live Site Theme Matches
+                // Deep Space / Midnight Theme
+                midnight: {
+                    950: '#020617', // Main Dark BG
+                    900: '#0f172a', // Sidebar / Cards
+                    800: '#1e293b', // Hover States
+                },
+                // Premium Accents
+                gold: {
+                    400: '#fbbf24',
+                    500: '#f59e0b',
+                    600: '#d97706', // Rich Gold
+                },
+                emerald: {
+                    400: '#34d399',
+                    500: '#10b981', // Primary Green
+                    600: '#059669',
+                },
+                // Standard Slate (kept for compatibility, but refined)
                 slate: {
                     50: '#f8fafc',
                     100: '#f1f5f9',
@@ -21,10 +38,18 @@ module.exports = {
                     600: '#475569',
                     700: '#334155',
                     800: '#1e293b',
-                    900: '#0f172a', // Live Site Card/Input
-                    950: '#0b1121', // Live Site Background
+                    900: '#0f172a',
+                    950: '#020617',
                 },
             },
+            boxShadow: {
+                'glow-sm': '0 0 10px rgba(16, 185, 129, 0.1)',
+                'glow-md': '0 0 20px rgba(16, 185, 129, 0.2)',
+                'glow-gold': '0 0 20px rgba(245, 158, 11, 0.15)',
+            },
+            backgroundImage: {
+                'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+            }
         },
     },
     plugins: [],
