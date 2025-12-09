@@ -16,7 +16,10 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@hello-pangea/dnd": "^18.0.1",
+    "browser-image-compression": "^2.0.2",
     "firebase": "^12.6.0",
+    "heic2any": "^0.0.4",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.555.0",

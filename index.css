@@ -5,9 +5,41 @@
 /* Global Styles & Premium Glassmorphism 2025 */
 
 @media print {
+
+  *,
+  *::before,
+  *::after {
+    text-shadow: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    background-color: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+
+  /* Force Light Mode Variables for Print */
+  :root {
+    --glass-border: #e2e8f0 !important;
+    --glass-bg: transparent !important;
+    --glass-shadow: none !important;
+  }
+
+  /* Hide Scrollbars & extraneous elements */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ensure content fits */
+  html,
+  body {
+    height: auto;
+    overflow: visible;
   }
 }
 

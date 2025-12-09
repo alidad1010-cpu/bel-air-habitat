@@ -180,8 +180,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
         showForgotPassword && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white dark:text-white mb-2">Réinitialisation</h3>
-              <p className="text-slate-700 dark:text-slate-200 dark:text-white text-sm mb-6 leading-relaxed">
+              <h3 className="text-xl font-bold text-white mb-2">Réinitialisation</h3>
+              <p className="text-slate-300 text-sm mb-6 leading-relaxed">
                 Pour des raisons de sécurité, veuillez contacter l'administrateur pour réinitialiser votre accès :
               </p>
               <a

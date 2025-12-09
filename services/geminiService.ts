@@ -1,17 +1,17 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ContactMethod, ProjectStatus, ProjectTask } from "../types";
+import { ContactMethod } from "../types";
 
 // Initialize the Gemini AI client safely
 // Checks if process is defined to avoid ReferenceError in some browser environments
 const getApiKey = () => {
-  return import.meta.env.VITE_GEMINI_API_KEY || "";
+  return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || "";
 };
 
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 // Define the model to use
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-1.5-flash";
 
 export interface ExtractedProjectData {
   clientName: string;
@@ -224,3 +224,219 @@ export const generateEmailResponse = async (projectData: ExtractedProjectData): 
     return "Bonjour,\n\nMerci pour votre demande. Nous l'avons bien reçue et revenons vers vous rapidement.\n\nCordialement,\nBel Air Habitat";
   }
 }
+
+// --- NEW EXPENSE ANALYSIS ---
+import { ExpenseCategory, ExpenseType } from "../types";
+
+export interface ExtractedExpenseData {
+  date: string;
+  merchant: string;
+  amount: number;
+  currency: string;
+  category: ExpenseCategory | string;
+  type: ExpenseType;
+  notes?: string;
+  vat?: number;
+}
+
+import { processImageForAI } from "../utils/imageProcessor";
+
+export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpenseData | null> => {
+  try {
+    // 1. Pre-process image (HEIC -> JPG, Resize, Compress)
+    const processedFile = await processImageForAI(file);
+    const base64Data = await fileToBase64(processedFile);
+
+    // Timeout de 60s pour les gros PDF
+    const timeoutPromise = new Promise<any>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout: Le fichier est trop volumineux pour être traité en moins de 60s.")), 60000)
+    );
+
+    const response = await Promise.race([
+      ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: file.type,
+                data: base64Data
+              }
+            },
+            {
+              text: `Agis comme un expert comptable. Analyse ce document (Ticket ou Facture).
+              Extrais les données au format JSON uniquement.
+              
+              Champs requis :
+              - docType: "Ticket" ou "Facture"
+              - date: Date au format YYYY-MM-DD
+              - merchant: Nom du commerçant
+              - amount: Montant total TTC (numérique)
+              - vat: Montant TVA (numérique, optionnel)
+              - category: Catégorie la plus probable (Carburant, Restaurant, Matériel, Loyer, Assurances, Autre)
+              
+              Réponds UNIQUEMENT avec le JSON valide, sans markdown.`
+            }
+          ]
+        }
+      }),
+      timeoutPromise
+    ]) as any;
+
+    let text = response.text;
+    if (!text) return null;
+
+    // Clean Markdown code blocks if present
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // Define temporary interface for the raw AI response
+    interface AIResponse {
+      docType?: string;
+      date?: string;
+      merchant?: string;
+      amount?: number;
+      vat?: number;
+      invoiceNumber?: string;
+      category?: string;
+      notes?: string;
+    }
+
+    const rawData = JSON.parse(text) as AIResponse;
+
+    // Construct final data
+    const finalData: ExtractedExpenseData = {
+      date: rawData.date || new Date().toISOString().split('T')[0],
+      merchant: rawData.merchant || "Inconnu",
+      amount: rawData.amount || 0,
+      currency: "EUR", // Default as not requested in prompt
+      category: rawData.category || ExpenseCategory.OTHER,
+      type: ExpenseType.VARIABLE, // Default, logic below could refine
+      vat: rawData.vat || 0,
+      notes: rawData.notes || ""
+    };
+
+    // Auto-enrich notes with detected metadata
+    const metadata = [];
+    if (rawData.docType) metadata.push(`Type: ${rawData.docType}`);
+    if (rawData.invoiceNumber) metadata.push(`N°: ${rawData.invoiceNumber}`);
+
+    if (metadata.length > 0) {
+      finalData.notes = `${metadata.join(' - ')} \n ${finalData.notes}`.trim();
+    }
+
+    // Heuristic for Type (Fixed/Variable)
+    const fixedCategories = [ExpenseCategory.RENT, ExpenseCategory.INSURANCE, "Loyer", "Assurances"];
+    if (fixedCategories.includes(finalData.category as any)) {
+      finalData.type = ExpenseType.FIXED;
+    }
+
+    return finalData;
+
+  } catch (error) {
+    console.error("AI Expense Analysis failed:", error);
+    return null; // Let the UI handle manual entry
+  }
+};
+
+// --- PROSPECTION ANALYSIS ---
+
+export interface ProspectNoteAnalysis {
+  nextActionDate?: string; // YYYY-MM-DD
+  estimatedAmount?: number;
+  summary?: string;
+}
+
+export const analyzeProspectNote = async (note: string): Promise<ProspectNoteAnalysis> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `Tu es un assistant commercial. Analyse cette note brute prise lors d'un échange avec un prospect.
+      
+      Ta mission :
+      1. Détecter si une date de "Prochaine action" (rappel, rdv) est mentionnée. Si "mardi" est dit, déduis la date du prochain mardi par rapport à aujourd'hui (${new Date().toISOString().split('T')[0]}). Renvoie au format YYYY-MM-DD.
+      2. Détecter si un montant estimé (budget, devis) est mentionné. Renvoie le nombre.
+      3. Faire un court résumé professionnel de l'échange (1 phrase).
+
+      Note brute : "${note}"
+      `,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            nextActionDate: { type: Type.STRING, description: "Date de la prochaine action au format YYYY-MM-DD" },
+            estimatedAmount: { type: Type.NUMBER, description: "Montant estimé en euros" },
+            summary: { type: Type.STRING, description: "Résumé court de l'échange" }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return {};
+
+    return JSON.parse(text) as ProspectNoteAnalysis;
+
+  } catch (error) {
+    console.warn("AI Prospect Analysis failed", error);
+    return {};
+  }
+};
+
+export interface BulkProspectData {
+  companyName: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  city: string;
+  status: string;
+  estimatedAmount: number;
+  notes: string;
+}
+
+export const parseProspectList = async (rawText: string): Promise<BulkProspectData[]> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `Tu es un expert CRM. Analyse cette liste de prospects (issue d'un CSV ou Excel) et extrais les données structurées.
+      
+      Colonnes usuelles : Nom Entreprise, Nom Contact, Email, Téléphone, Ville, Statut, Montant Potentiel, Notes.
+      
+      Règles :
+      1. Si le statut est flou, mets "NOUVEAU".
+      2. Renvoie un tableau JSON strict.
+      
+      Données à analyser :
+      "${rawText.slice(0, 30000)}" 
+      `,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              companyName: { type: Type.STRING },
+              contactName: { type: Type.STRING },
+              email: { type: Type.STRING },
+              phone: { type: Type.STRING },
+              city: { type: Type.STRING },
+              status: { type: Type.STRING },
+              estimatedAmount: { type: Type.NUMBER },
+              notes: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text) as BulkProspectData[];
+
+  } catch (error) {
+    console.error("AI Prospect Import failed:", error);
+    return [];
+  }
+};
+

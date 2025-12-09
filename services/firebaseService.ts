@@ -104,36 +104,41 @@ export const deleteDocument = async (collectionName: string, docId: string) => {
 export const uploadFileToCloud = async (path: string, file: File): Promise<string> => {
     if (!storage) throw new Error("Storage not initialized");
 
-    const uploadPromise = async () => {
+    const performUpload = async (attempt: number): Promise<string> => {
         try {
             const storageRef = ref(storage, path);
             const snapshot = await uploadBytes(storageRef, file);
             return await getDownloadURL(snapshot.ref);
-        } catch (e) {
-            throw e;
+        } catch (error) {
+            if (attempt < 3) {
+                console.warn(`Upload attempt ${attempt} failed, retrying...`, error);
+                await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff-ish
+                return performUpload(attempt + 1);
+            }
+            throw error;
         }
     };
 
-    // Timeout de sécurité réduit à 5 secondes pour éviter le spinner infini
+    // Timeout de sécurité global augmenté à 5 minutes (300s) pour les très gros fichiers
     const timeoutPromise = new Promise<string>((_, reject) => {
-        setTimeout(() => reject(new Error("Cloud Upload Timed Out")), 5000);
+        setTimeout(() => reject(new Error("Cloud Upload Timed Out (5 min limit)")), 300000);
     });
 
     try {
-        return await Promise.race([uploadPromise(), timeoutPromise]);
+        return await Promise.race([performUpload(1), timeoutPromise]);
     } catch (error) {
-        console.warn("Storage Upload Issue (will fallback to local):", error);
+        console.warn("Storage Upload Issue (will fallback to local if possible):", error);
         throw error;
     }
 }
 
 // --- AUTHENTICATION ---
-export const signIn = (email, password) => {
+export const signIn = (email: string, password: string) => {
     if (!auth) return Promise.reject("Auth not initialized");
     return signInWithEmailAndPassword(auth, email, password);
 };
 
-export const registerUser = (email, password) => {
+export const registerUser = (email: string, password: string) => {
     if (!auth) return Promise.reject("Auth not initialized");
     return createUserWithEmailAndPassword(auth, email, password);
 };
@@ -143,7 +148,7 @@ export const logout = () => {
     return signOut(auth);
 };
 
-export const subscribeToAuth = (callback) => {
+export const subscribeToAuth = (callback: (user: FirebaseUser | null) => void) => {
     if (!auth) return () => { };
     return onAuthStateChanged(auth, callback);
 };

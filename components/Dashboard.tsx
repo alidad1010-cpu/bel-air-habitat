@@ -424,7 +424,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, onNavigate, notes = [],
                             <span className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full">Vue Satellite</span>
                         </div>
                         <div className="rounded-2xl overflow-hidden shadow-inner border border-slate-200 dark:border-slate-800">
-                            <LeafletMap projects={projects} />
+                            <LeafletMap projects={projects.filter(p => p.status === ProjectStatus.VALIDATED || p.status === ProjectStatus.IN_PROGRESS)} />
                         </div>
                     </div>
                 )}

@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { LayoutDashboard, Users, Settings, LogOut, X, CheckSquare, Wifi, WifiOff, HardHat, FileText, Building2, Handshake, Calendar, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, X, CheckSquare, Wifi, WifiOff, HardHat, FileText, Building2, Handshake, Calendar, Briefcase, DollarSign, Megaphone } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -10,22 +10,30 @@ interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
   isOnline?: boolean;
+  currentUser?: any; // Avoiding full User type import bloat if not needed, but ideally User.
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, isOpen = false, onClose, isOnline = true }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, isOpen = false, onClose, isOnline = true, currentUser }) => {
 
-  // Custom list to ensure correct icons and order
   const displayMenu: { id: string; icon: React.ElementType; label: string }[] = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
-    { id: 'tasks', icon: CheckSquare, label: 'Mes Tâches' }, // Moved up as requested
+    { id: 'tasks', icon: CheckSquare, label: 'Mes Tâches' },
     { id: 'agenda', icon: Calendar, label: 'Agenda' },
     { id: 'projects', icon: Briefcase, label: 'Dossiers' },
     { id: 'clients', icon: Users, label: 'Clients' },
+  ];
+
+  // RESTRICTED ACCESS: Prospection (CRM)
+  displayMenu.push({ id: 'prospection', icon: Megaphone, label: 'Prospection' });
+
+
+  displayMenu.push(
     { id: 'partners', icon: Handshake, label: 'Partenaires' },
     { id: 'employees', icon: HardHat, label: 'Salariés' },
     { id: 'administrative', icon: Building2, label: 'Administratif' },
+    { id: 'expenses', icon: DollarSign, label: 'Dépenses' },
     { id: 'settings', icon: Settings, label: 'Paramètres' },
-  ];
+  );
 
   return (
     <>
@@ -102,7 +110,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, is
 
           <div className="mt-4 text-center">
             <p className="text-[10px] text-slate-600 dark:text-slate-500 font-mono opacity-50">
-              v1.3.0
+              v1.3.1
+
             </p>
           </div>
         </div>

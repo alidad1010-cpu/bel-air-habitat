@@ -1,13 +1,14 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, ChevronLeft, ChevronRight, Search, LayoutList, Kanban, Loader2, Wifi, WifiOff, RefreshCw, Menu, RotateCw, AlertTriangle, X, Printer, Trash2, ShoppingCart, User, Copy, MessageCircle, MapPin, Phone, Mail, FileText, Download, Send, Check, Clock, FileCheck, ExternalLink, AlertCircle, PhoneCall, CopyPlus, Save, Tag, Briefcase, Calendar, Key, Euro, ListChecks, CheckSquare, Eye, Image as ImageIcon, Upload, Hammer } from 'lucide-react';
+import { Plus, Loader2, Printer, Trash2, ShoppingCart, User, CopyPlus, MapPin, FileText, Download, Send, Check, Clock, FileCheck, ExternalLink, AlertCircle, PhoneCall, Save, Tag, Briefcase, Calendar, Key, Euro, ListChecks, CheckSquare, Eye, Image as ImageIcon, Upload, Hammer, AlertTriangle, X, Copy, MessageCircle } from 'lucide-react';
 import { generatePurchaseOrderPDF } from '../services/pdfService';
 import { generateWorkOrderEmailLink } from '../services/emailService';
-import { Project, ProjectStatus, ProjectDocument, ProjectPhoto, Appointment, ProjectTask, PurchaseOrder, Client } from '../types';
+import { Project, ProjectStatus, ProjectDocument, ProjectPhoto, Appointment, ProjectTask, PurchaseOrder, Client, Expense, ExpenseCategory, ExpenseType } from '../types';
 import { uploadFileToCloud } from '../services/firebaseService';
-import { extractQuoteAmount } from '../services/geminiService';
+import { extractQuoteAmount, analyzeExpenseReceipt } from '../services/geminiService';
+import { processImageForAI } from '../utils/imageProcessor';
 import AddressAutocomplete from './AddressAutocomplete';
-import WeatherWidget from './WeatherWidget';
+import { subscribeToCollection, saveDocument, deleteDocument, where } from '../services/firebaseService';
 
 interface ProjectDetailProps {
     project: Project;
@@ -20,15 +21,16 @@ interface ProjectDetailProps {
 }
 
 // CONSTANTS FOR FILE UPLOAD LIMITS
-const MAX_DOC_SIZE_MB = 25; // Hard limit (25MB)
-const WARN_DOC_SIZE_MB = 5; // Soft limit (5MB) - Warn user it might be slow
+const MAX_DOC_SIZE_MB = 100; // Increased to 100MB for large blueprints
+const WARN_DOC_SIZE_MB = 10; // Soft warn at 10MB
+const AI_LIMIT_MB = 20; // Max size for AI Analysis (Base64 conversion crash protection)
 const MAX_PHOTO_INPUT_SIZE_MB = 20; // Max input size for photos before compression
 
 const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, onDelete, onDuplicate, onTriggerAutomation, clients = [] }) => {
     // Defensive check: If project is null/undefined, render error state instead of crashing
-    if (!project) return <div className="p-8 text-center text-red-500">Erreur: Données du projet manquantes.</div>;
 
-    const [formData, setFormData] = useState<Project>(project);
+
+    const [formData, setFormData] = useState<Project>(project || {} as Project);
     const [activeTab, setActiveTab] = useState('Principal');
     const [activePhotoTab, setActivePhotoTab] = useState<'AVANT' | 'PENDANT' | 'APRES' | 'COMPARATIF'>('AVANT');
     const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
@@ -77,12 +79,119 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
     });
     const [isCreatingBDC, setIsCreatingBDC] = useState(false);
 
+    // EXPENSES MANAGEMENT STATE
+    const [projectExpenses, setProjectExpenses] = useState<Expense[]>([]);
+    const [isAddingExpense, setIsAddingExpense] = useState(false);
+    const [expenseForm, setExpenseForm] = useState<Partial<Expense>>({
+        date: new Date().toISOString().split('T')[0],
+        currency: 'EUR',
+        type: ExpenseType.VARIABLE,
+        category: ExpenseCategory.OTHER
+    });
+
+    // Load Expenses
+    useEffect(() => {
+        if (!project.id) return;
+        const unsubscribe = subscribeToCollection('expenses', (data) => {
+            setProjectExpenses(data as Expense[]);
+        }, [where('projectId', '==', project.id)]);
+        return () => unsubscribe();
+    }, [project.id]);
+
+    const handleExpenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setUploadStatusMsg("Analyse IA et Sauvegarde...");
+
+        try {
+            // 1. Process & Compress (Workflow Step 4 - Performance)
+            // We use the same utility as the main app
+            const processedFile = await processImageForAI(file);
+
+            // 2. Upload to Cloud (Workflow Step 1 - Upload & Stockage)
+            // Path: projects/{id}/expenses/{timestamp}_{name}
+            const safeName = processedFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
+            const path = `projects/${project.id}/expenses/${Date.now()}_${safeName}`;
+            const url = await uploadFileToCloud(path, processedFile);
+
+            // 3. AI Analysis (Workflow Step 2 - Analyse IA)
+            // We pass the processed file to Gemini to minimize token usage / errors
+            const extractedData = await analyzeExpenseReceipt(processedFile);
+
+            // 4. Update Form State
+            setExpenseForm(prev => ({
+                ...prev,
+                receiptUrl: url, // Link to stored file
+                date: extractedData?.date || prev.date,
+                amount: extractedData?.amount || prev.amount,
+                merchant: extractedData?.merchant || prev.merchant,
+                category: extractedData?.category || prev.category,
+                type: extractedData?.type || prev.type,
+                notes: extractedData?.notes || prev.notes,
+                vat: extractedData?.vat || prev.vat
+            }));
+
+        } catch (error) {
+            console.error("Expense processing error:", error);
+            alert("Erreur lors du traitement. Vous pouvez remplir manuellement.");
+        } finally {
+            setIsUploading(false);
+            setUploadStatusMsg("");
+            if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleSaveExpense = async () => {
+        if (!expenseForm.merchant || !expenseForm.amount) {
+            alert("Merci de remplir au moins le marchand et le montant.");
+            return;
+        }
+
+        const newExpense: Expense = {
+            id: expenseForm.id || Date.now().toString(),
+            projectId: project.id, // Link to Project
+            createdAt: expenseForm.createdAt || Date.now(),
+            updatedAt: Date.now(),
+            date: expenseForm.date!,
+            merchant: expenseForm.merchant!,
+            amount: Number(expenseForm.amount),
+            currency: 'EUR',
+            category: expenseForm.category || ExpenseCategory.OTHER,
+            type: expenseForm.type || ExpenseType.VARIABLE,
+            notes: expenseForm.notes,
+            receiptUrl: expenseForm.receiptUrl,
+            vat: expenseForm.vat
+        };
+
+        // Save to specific 'expenses' collection but filtered by projectId
+        await saveDocument('expenses', newExpense.id, newExpense);
+
+        setIsAddingExpense(false);
+        setExpenseForm({
+            date: new Date().toISOString().split('T')[0],
+            currency: 'EUR',
+            type: ExpenseType.VARIABLE,
+            category: ExpenseCategory.OTHER
+        });
+    };
+
+    const handleDeleteExpense = async (expenseId: string) => {
+        if (window.confirm("Supprimer cette dépense ? Le fichier joint ne sera pas supprimé du serveur.")) {
+            await deleteDocument('expenses', expenseId);
+        }
+    };
+
     // Filter for Partners/Subcontractors
     const partnersList = useMemo(() => {
         return clients.filter(c => c.type === 'SOUS_TRAITANT' || c.type === 'PARTENAIRE');
     }, [clients]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Defensive check: moved after hooks
+    if (!project || !project.id) return <div className="p-8 text-center text-red-500">Erreur: Données du projet manquantes.</div>;
 
     // Sync logic when prop changes
     useEffect(() => {
@@ -93,8 +202,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
     }, [project?.id]);
 
     // Optimized for Mobile: text-base on mobile avoids zoom, text-sm on desktop
-    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white dark:text-white placeholder-slate-400 text-base md:text-sm";
-    const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 dark:text-white uppercase mb-1";
+    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-400 text-base md:text-sm";
+    const labelClass = "block text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase mb-1";
     const sectionTitleClass = "font-bold text-slate-800 dark:text-slate-100 dark:text-white flex items-center mb-4 text-sm uppercase tracking-wide border-b border-slate-100 dark:border-slate-800 pb-2";
 
     const updateField = (field: keyof Project, value: any) => {
@@ -576,15 +685,16 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
 
         // 1. CHECK FILE SIZE (HARD LIMIT)
         if (file.size > MAX_DOC_SIZE_MB * 1024 * 1024) {
-            alert(`Fichier trop volumineux(${(file.size / 1024 / 1024).toFixed(1)} MB).La limite est de ${MAX_DOC_SIZE_MB} MB.`);
+            alert(`Fichier trop volumineux. La limite est de ${MAX_DOC_SIZE_MB} MB.`);
             if (e.target) e.target.value = '';
             return;
         }
 
         // 2. CHECK FILE SIZE (SOFT WARNING)
         if (file.size > WARN_DOC_SIZE_MB * 1024 * 1024) {
+            // For very large files, just warn about time
             const confirmUpload = window.confirm(
-                `Ce document fait ${(file.size / 1024 / 1024).toFixed(1)} MB.L'envoi peut prendre du temps.\n\nConseil : Compressez le fichier PDF pour aller plus vite.\n\nVoulez-vous continuer quand même ?`
+                `Ce document fait ${(file.size / 1024 / 1024).toFixed(1)} MB. L'envoi peut être long.\n\nVoulez-vous continuer ?`
             );
             if (!confirmUpload) {
                 if (e.target) e.target.value = '';
@@ -598,31 +708,31 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
         // Feature: AI Extraction for QUOTE
         let budgetUpdate = {};
         if (type === 'QUOTE') {
-            setUploadStatusMsg('Analyse IA du devis en cours...');
-            try {
-                const amount = await extractQuoteAmount(file);
-                if (amount && amount > 0) {
-                    budgetUpdate = { budget: amount };
-                    // Subtle feedback
-                    setUploadStatusMsg(`Montant HT détecté : ${amount}€`);
-                } else {
-                    // Fallback: Ask user if AI fails or returns 0
-                    const amountStr = window.prompt("L'IA n'a pas pu détecter le montant. Quel est le montant TOTAL HT ? (en €)");
-                    if (amountStr) {
-                        const amount = parseFloat(amountStr.replace(',', '.').replace(/[^0-9.]/g, ''));
-                        if (!isNaN(amount) && amount > 0) {
-                            budgetUpdate = { budget: amount };
-                        }
-                    }
-                }
-            } catch (aiError) {
-                console.warn("AI extraction failed, skipping", aiError);
-                // Fallback prompt on error
-                const amountStr = window.prompt("Quel est le montant TOTAL HT de ce devis ? (en €)");
+            // Check if file is too big for AI
+            if (file.size > AI_LIMIT_MB * 1024 * 1024) {
+                setUploadStatusMsg('Fichier > 20Mo : Stockage sécurisé uniquement (Pas d\'analyse IA)...');
+                // Prompt manually immediately since AI is skipped
+                const amountStr = window.prompt("Fichier lourd: L'IA a été désactivée. Montant TOTAL HT ? (en €)");
                 if (amountStr) {
                     const amount = parseFloat(amountStr.replace(',', '.').replace(/[^0-9.]/g, ''));
-                    if (!isNaN(amount) && amount > 0) {
+                    if (!isNaN(amount) && amount > 0) budgetUpdate = { budget: amount };
+                }
+            } else {
+                setUploadStatusMsg('Analyse IA du devis en cours...');
+                try {
+                    const amount = await extractQuoteAmount(file);
+                    if (amount && amount > 0) {
                         budgetUpdate = { budget: amount };
+                        setUploadStatusMsg(`Montant HT détecté : ${amount}€`);
+                    } else {
+                        throw new Error("No amount found");
+                    }
+                } catch (aiError) {
+                    console.warn("AI extraction skipped/failed", aiError);
+                    const amountStr = window.prompt("Montant TOTAL HT ? (en €)");
+                    if (amountStr) {
+                        const amount = parseFloat(amountStr.replace(',', '.').replace(/[^0-9.]/g, ''));
+                        if (!isNaN(amount) && amount > 0) budgetUpdate = { budget: amount };
                     }
                 }
             }
@@ -630,22 +740,32 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
 
         try {
             let fileToUpload = file;
+
+            // 0. COMPRESS IMAGES (Client-side optimization)
+            if (file.type.startsWith('image/')) {
+                try {
+                    fileToUpload = await processImageForAI(file);
+                } catch (cErr) {
+                    console.warn("Compression failed, using original", cErr);
+                }
+            }
+
             let url;
 
             setUploadStatusMsg('Sauvegarde...');
             try {
                 // 1. Try Cloud Storage
                 // We use a simplified path to avoid special char issues
-                const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9.]/g, '_');
                 const path = `projects/${formData.id}/documents/${Date.now()}_${safeName}`;
                 url = await uploadFileToCloud(path, fileToUpload);
             } catch (cloudError) {
-                console.warn("Cloud upload failed or timed out, falling back to base64");
+                console.warn("Cloud upload failed or timed out, falling back to base64", cloudError);
 
                 // 2. Fallback to Local Base64
-                // Max 0.5 MB for local storage fallback to prevent quota exhaustion
-                if (file.size > 0.5 * 1024 * 1024) {
-                    throw new Error("Fichier trop volumineux pour la sauvegarde locale de secours (Max 0.5Mo). Le Cloud ne répond pas.");
+                // Limit increased to 950KB (Firestore doc limit is 1MB, keeping buffer)
+                if (fileToUpload.size > 0.95 * 1024 * 1024) {
+                    throw new Error(`Echec de l'envoi Cloud. Le fichier (${(fileToUpload.size / 1024 / 1024).toFixed(2)} Mo) est trop lourd pour la sauvegarde locale.`);
                 }
                 url = await fileToBase64(fileToUpload);
             }
@@ -1568,7 +1688,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
                                         </div>
                                         <div className="flex justify-end space-x-3 pt-2">
                                             <button onClick={() => setIsCreatingBDC(false)} className="px-4 py-2 text-slate-700 dark:text-slate-200 text-sm">Annuler</button>
-                                            <button onClick={generateBDC} className="bg-slate-900 text-slate-900 dark:text-white dark:text-white px-4 py-2 rounded text-sm font-bold">Générer BDC</button>
+                                            <button onClick={generateBDC} className="bg-slate-900 text-white px-4 py-2 rounded text-sm font-bold">Générer BDC</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1597,6 +1717,139 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack, onSave, 
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+
+                            {/* --- NOTES DE FRAIS & DEPENSES --- */}
+                            <div className="pt-8 border-t border-slate-200 dark:border-slate-800">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className={sectionTitleClass}><Euro size={18} className="mr-2" /> Dépenses & Notes de Frais</h3>
+                                    <button
+                                        onClick={() => setIsAddingExpense(!isAddingExpense)}
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm"
+                                    >
+                                        {isAddingExpense ? 'Annuler' : '+ Ajouter une Dépense'}
+                                    </button>
+                                </div>
+
+                                {isAddingExpense && (
+                                    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-sm animate-in fade-in mb-6">
+                                        <h4 className="font-bold text-indigo-900 dark:text-indigo-300 mb-4 flex items-center">
+                                            <Upload size={16} className="mr-2" /> Nouvelle Dépense (Scan IA)
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            <div className="col-span-full">
+                                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">1. Justificatif (Ticket/Facture)</label>
+                                                <div className="border-2 border-dashed border-indigo-200 dark:border-indigo-800 rounded-lg p-4 bg-indigo-50 dark:bg-indigo-900/20 text-center relative group cursor-pointer hover:bg-indigo-100 transition-colors">
+                                                    {isUploading ? (
+                                                        <div className="flex flex-col items-center">
+                                                            <Loader2 size={24} className="animate-spin text-indigo-600 mb-2" />
+                                                            <span className="text-xs font-bold text-indigo-700">{uploadStatusMsg || "Traitement..."}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <Upload size={24} className="mx-auto text-indigo-400 mb-2" />
+                                                            <span className="text-sm font-bold text-indigo-700">Cliquez pour scanner ou déposer un fichier</span>
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*,application/pdf"
+                                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                                onChange={handleExpenseUpload}
+                                                                disabled={isUploading}
+                                                            />
+                                                            <p className="text-[10px] text-indigo-400 mt-1">Image compressée automatiquement (JPEG 80%) + Stockage Cloud</p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {expenseForm.receiptUrl && (
+                                                <>
+                                                    <div>
+                                                        <label className={labelClass}>Date</label>
+                                                        <input type="date" value={expenseForm.date || ''} onChange={e => setExpenseForm({ ...expenseForm, date: e.target.value })} className={inputClass} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Marchand</label>
+                                                        <input type="text" value={expenseForm.merchant || ''} onChange={e => setExpenseForm({ ...expenseForm, merchant: e.target.value })} className={inputClass} placeholder="Ex: Total Energies" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Montant TTC</label>
+                                                        <input type="number" step="0.01" value={expenseForm.amount || ''} onChange={e => setExpenseForm({ ...expenseForm, amount: parseFloat(e.target.value) })} className={inputClass} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Catégorie</label>
+                                                        <select value={expenseForm.category || 'Autre'} onChange={e => setExpenseForm({ ...expenseForm, category: e.target.value })} className={inputClass}>
+                                                            {Object.values(ExpenseCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="col-span-full flex justify-end">
+                                                        <button
+                                                            onClick={handleSaveExpense}
+                                                            disabled={isUploading}
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-emerald-200 disabled:opacity-50"
+                                                        >
+                                                            Enregistrer la Dépense
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold uppercase text-xs">
+                                            <tr>
+                                                <th className="px-4 py-3">Date</th>
+                                                <th className="px-4 py-3">Marchand</th>
+                                                <th className="px-4 py-3">Catégorie</th>
+                                                <th className="px-4 py-3 text-right">Montant</th>
+                                                <th className="px-4 py-3 text-center">Justificatif</th>
+                                                <th className="px-4 py-3 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {projectExpenses.length === 0 ? (
+                                                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500 italic">Aucune dépense enregistrée pour ce chantier.</td></tr>
+                                            ) : (
+                                                projectExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+                                                    <tr key={exp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                        <td className="px-4 py-3 font-mono text-xs">{new Date(exp.date).toLocaleDateString()}</td>
+                                                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{exp.merchant}</td>
+                                                        <td className="px-4 py-3 text-xs">
+                                                            <span className="bg-slate-100 text-slate-700 dark:text-slate-200 px-2 py-1 rounded-full">{exp.category}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">{exp.amount.toFixed(2)} €</td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {exp.receiptUrl ? (
+                                                                <a
+                                                                    href={exp.receiptUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center justify-center p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-100"
+                                                                    title="Voir le justificatif"
+                                                                >
+                                                                    <FileText size={16} />
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-slate-300">-</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <button
+                                                                onClick={() => handleDeleteExpense(exp.id)}
+                                                                className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )}

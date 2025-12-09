@@ -7,6 +7,8 @@ interface AddressResult {
   street: string;
   city: string;
   zipCode: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface AddressAutocompleteProps {
@@ -37,7 +39,7 @@ interface BANFeature {
   };
   geometry: {
     type: string;
-    coordinates: number[];
+    coordinates: number[]; // [long, lat]
   };
 }
 
@@ -103,7 +105,9 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       fullAddress: props.label,
       street: streetLabel,
       city: props.city,
-      zipCode: props.postcode
+      zipCode: props.postcode,
+      lng: feature.geometry.coordinates[0],
+      lat: feature.geometry.coordinates[1]
     };
 
     // Update parent

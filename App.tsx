@@ -13,7 +13,7 @@ import Sidebar from './components/Sidebar';
 import UserProfileModal from './components/UserProfileModal';
 import LoginPage from './components/LoginPage';
 import ReloadPrompt from './components/ReloadPrompt';
-import { Project, ProjectStatus, User, Client, Employee, CompanyAdministrativeData } from './types';
+import { Project, ProjectStatus, User, Client, Employee, CompanyAdministrativeData, Expense, AttendanceRecord, Prospect, ProspectStatus } from './types';
 
 // --- LAZY LOAD COMPONENTS ---
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -28,9 +28,13 @@ const ProjectList = lazy(() => import('./components/ProjectList'));
 const TasksPage = lazy(() => import('./components/TasksPage'));
 const EmployeesPage = lazy(() => import('./components/EmployeesPage'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
+const ExpensesPage = lazy(() => import('./components/ExpensesPage'));
+const ProspectionPage = lazy(() => import('./components/ProspectionPage'));
+
+
 
 // --- FIREBASE IMPORTS ---
-import { saveDocument, deleteDocument, subscribeToAuth, subscribeToCollection, where } from './services/firebaseService';
+import { saveDocument, deleteDocument, subscribeToAuth, subscribeToCollection, where, orderBy, limit } from './services/firebaseService';
 
 // --- DATA SANITIZATION & STORAGE UTILITIES ---
 const sanitizeStorageData = (data: any, ancestors = new Set<any>(), depth = 0): any => {
@@ -180,6 +184,9 @@ const App: React.FC = () => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+    const [prospects, setProspects] = useState<Prospect[]>([]);
 
     // ADMIN DATA STATE
     const [adminData, setAdminData] = useState<CompanyAdministrativeData>({
@@ -283,7 +290,7 @@ const App: React.FC = () => {
         }
     }, [activeTab, selectedProject]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [globalSearchResults, setGlobalSearchResults] = useState<{ projects: Project[], clients: Client[] } | null>(null);
+    const [globalSearchResults, setGlobalSearchResults] = useState<{ projects: Project[], clients: Client[], employees: Employee[] } | null>(null);
     const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'ALL'>('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -444,17 +451,36 @@ const App: React.FC = () => {
         let unsubUsers: (() => void) | undefined;
         let unsubCompany: (() => void) | undefined;
         let unsubEmployees: (() => void) | undefined;
+        let unsubExpenses: (() => void) | undefined;
+        let unsubAttendances: (() => void) | undefined;
+
+        let unsubTeamMessages: (() => void) | undefined;
+        let unsubProspects: (() => void) | undefined;
 
         const setupSubscriptions = async () => {
-            // Optimize: Only fetch non-archived projects initially
+            // Unchanged: Projects
             unsubProjects = subscribeToCollection('projects', (data) => {
                 const castData = Array.isArray(data) ? data as Project[] : [];
                 const cleanData = sanitizeStorageData(castData);
-                if (cleanData.length === 0 && projects.length > 0) return;
-                setProjects(cleanData);
-                safeLocalStorageSet('artisan-projects-backup', cleanData);
+
+                // AUTO-START LOGIC
+                const today = new Date().toISOString().split('T')[0];
+                const processedData = cleanData.map((p: Project) => {
+                    if (p.status === ProjectStatus.VALIDATED && p.startDate && p.startDate <= today) {
+                        console.log(`Auto-starting project: ${p.title} (${p.id})`);
+                        const updatedProject = { ...p, status: ProjectStatus.IN_PROGRESS };
+                        saveDocument('projects', updatedProject.id, updatedProject).catch(console.error);
+                        return updatedProject;
+                    }
+                    return p;
+                });
+
+                if (processedData.length === 0 && projects.length > 0) return;
+                setProjects(processedData);
+                safeLocalStorageSet('artisan-projects-backup', processedData);
             }, [where('status', '!=', 'ARCHIVED')]);
 
+            // Unchanged: Clients
             unsubClients = subscribeToCollection('clients', (data) => {
                 const castData = Array.isArray(data) ? data as Client[] : [];
                 const cleanData = sanitizeStorageData(castData);
@@ -463,6 +489,7 @@ const App: React.FC = () => {
                 safeLocalStorageSet('artisan-clients-backup', cleanData);
             });
 
+            // Unchanged: Employees
             unsubEmployees = subscribeToCollection('employees', (data) => {
                 const castData = Array.isArray(data) ? data as Employee[] : [];
                 const cleanData = sanitizeStorageData(castData);
@@ -471,26 +498,44 @@ const App: React.FC = () => {
                 safeLocalStorageSet('artisan-employees-backup', cleanData);
             });
 
+            // Unchanged: Expenses
+            unsubExpenses = subscribeToCollection('expenses', (data) => {
+                const castData = Array.isArray(data) ? data as Expense[] : [];
+                const cleanData = sanitizeStorageData(castData);
+                setExpenses(cleanData);
+            });
+
+            // Unchanged: Attendances
+            unsubAttendances = subscribeToCollection('attendances', (data) => {
+                const castData = Array.isArray(data) ? data as AttendanceRecord[] : [];
+                const cleanData = sanitizeStorageData(castData);
+                setAttendances(cleanData);
+            });
+
+            // NEW: Prospects
+            unsubProspects = subscribeToCollection('prospects', (data) => {
+                const castData = Array.isArray(data) ? data as Prospect[] : [];
+                const cleanData = sanitizeStorageData(castData);
+                setProspects(cleanData);
+            });
+
+            // Unchanged: Users
             unsubUsers = subscribeToCollection('users', (data) => {
                 const castData = Array.isArray(data) ? data as User[] : [];
                 const cleanData = sanitizeStorageData(castData);
                 setUsers(cleanData);
             });
 
-            unsubCompany = subscribeToCollection('company', (data) => {
-                const dashboardDoc = data.find(d => d.id === 'dashboard');
-                if (dashboardDoc && dashboardDoc.notes) {
-                    setGlobalNotes(dashboardDoc.notes);
-                } else if (dashboardDoc && dashboardDoc.memo) {
-                    setGlobalNotes([{
-                        id: 'legacy',
-                        content: dashboardDoc.memo,
-                        authorName: 'Système',
-                        authorId: 'system',
-                        createdAt: Date.now()
-                    }]);
-                }
+            // NEW: Team Messages Subscription (Fast Sync)
+            unsubTeamMessages = subscribeToCollection('team_messages', (data) => {
+                const messages = data.map(d => ({ ...d, id: d.id } as SharedNote));
+                // Sort Descending (Newest first)
+                messages.sort((a, b) => b.createdAt - a.createdAt);
+                setGlobalNotes(messages);
+            }, [orderBy('createdAt', 'desc'), limit(50)]);
 
+            // UPDATED: Company Data (Admin Only, Legacy Notes Removed)
+            unsubCompany = subscribeToCollection('company', (data) => {
                 const adminDoc = data.find(d => d.id === 'administrative');
                 if (adminDoc) {
                     setAdminData({
@@ -518,6 +563,10 @@ const App: React.FC = () => {
             if (unsubUsers) unsubUsers();
             if (unsubCompany) unsubCompany();
             if (unsubEmployees) unsubEmployees();
+            if (unsubExpenses) unsubExpenses();
+            if (unsubAttendances) unsubAttendances();
+            if (unsubTeamMessages) unsubTeamMessages();
+            if (unsubProspects) unsubProspects();
         }
     }, [isHydrated, currentUser]);
 
@@ -527,6 +576,25 @@ const App: React.FC = () => {
         }, 300);
         return () => clearTimeout(timer);
     }, [searchQuery, projects, clients]);
+
+    // SYNC USER PROFILE: Ensure currentUser reflects the latest Firestore data
+    useEffect(() => {
+        if (currentUser && users.length > 0) {
+            const remoteProfile = users.find(u => u.id === currentUser.id);
+            if (remoteProfile) {
+                // Determine if we need to update local state (deep comparison or key fields)
+                // We use JSON stringify for simplicity as the object is sanitized
+                const localStr = JSON.stringify(currentUser);
+                const remoteStr = JSON.stringify(remoteProfile);
+
+                if (localStr !== remoteStr) {
+                    console.log("Syncing local user profile with remote data");
+                    setCurrentUser(remoteProfile);
+                    safeSessionStorageSet('currentUser', remoteProfile);
+                }
+            }
+        }
+    }, [users, currentUser?.id]); // Only depend on users list and current ID, not full currentUser to avoid loops if possible, though strict equality check handles it.
 
     const filteredAndSortedProjects = useMemo(() => {
         let filtered = projects;
@@ -672,7 +740,7 @@ const App: React.FC = () => {
 
     const handleSort = useCallback((field: string) => { console.log("Sort", field); }, []);
 
-    const handleDashboardNavigate = useCallback((tab: string, filter?: ProjectStatus) => {
+    const handleDashboardNavigate = useCallback((tab: string, filter?: ProjectStatus | 'ALL' | null) => {
         handleTabSwitch(tab, filter);
     }, [handleTabSwitch]);
 
@@ -754,7 +822,104 @@ const App: React.FC = () => {
         safeSessionStorageSet('currentUser', updatedUser);
         const clean = sanitizeStorageData(updatedUser);
         await saveDocument('users', clean.id, clean);
+        await saveDocument('users', clean.id, clean);
     };
+
+    // --- EXPENSE HANDLERS ---
+    const handleAddExpense = useCallback(async (expense: Expense) => {
+        const clean = sanitizeStorageData(expense);
+        setExpenses(prev => [...prev, clean]);
+        await saveDocument('expenses', clean.id, clean);
+    }, []);
+
+    const handleUpdateExpense = useCallback(async (expense: Expense) => {
+        const clean = sanitizeStorageData(expense);
+        setExpenses(prev => prev.map(e => e.id === clean.id ? clean : e));
+        await saveDocument('expenses', clean.id, clean);
+    }, []);
+
+    const handleDeleteExpense = useCallback(async (id: string) => {
+        if (window.confirm("Supprimer cette dépense ?")) {
+            setExpenses(prev => prev.filter(e => e.id !== id));
+            await deleteDocument('expenses', id);
+        }
+    }, []);
+
+    // --- ATTENDANCE HANDLERS ---
+    const handleUpdateAttendance = useCallback(async (record: AttendanceRecord) => {
+        const clean = sanitizeStorageData(record);
+        setAttendances(prev => {
+            const index = prev.findIndex(a => a.id === clean.id);
+            if (index >= 0) {
+                const newArr = [...prev];
+                newArr[index] = clean;
+                return newArr;
+            }
+            return [...prev, clean];
+        });
+        await saveDocument('attendances', clean.id, clean);
+    }, []);
+
+    const handleBulkUpdateAttendance = useCallback(async (records: AttendanceRecord[]) => {
+        const cleanRecords = records.map(r => sanitizeStorageData(r));
+        setAttendances(prev => {
+            const newMap = new Map(prev.map(p => [p.id, p]));
+            cleanRecords.forEach(r => newMap.set(r.id, r));
+            return Array.from(newMap.values());
+        });
+
+        await Promise.all(cleanRecords.map(r => saveDocument('attendances', r.id, r)));
+    }, []);
+
+    const handleBulkDeleteAttendance = useCallback(async (ids: string[]) => {
+        setAttendances(prev => prev.filter(a => !ids.includes(a.id)));
+        await Promise.all(ids.map(id => deleteDocument('attendances', id)));
+    }, []);
+
+    // --- PROSPECTION HANDLERS ---
+    const handleAddProspect = useCallback(async (prospect: Prospect) => {
+        const clean = sanitizeStorageData(prospect);
+        setProspects(prev => [...prev, clean]);
+        await saveDocument('prospects', clean.id, clean);
+    }, []);
+
+    const handleUpdateProspect = useCallback(async (prospect: Prospect) => {
+        const clean = sanitizeStorageData(prospect);
+        setProspects(prev => prev.map(p => p.id === clean.id ? clean : p));
+        await saveDocument('prospects', clean.id, clean);
+    }, []);
+
+    const handleDeleteProspect = useCallback(async (id: string) => {
+        if (window.confirm("Supprimer ce prospect ?")) {
+            setProspects(prev => prev.filter(p => p.id !== id));
+            await deleteDocument('prospects', id);
+        }
+    }, []);
+
+    const handleConvertToClient = useCallback(async (prospect: Prospect) => {
+        if (window.confirm(`Convertir "${prospect.contactName}" en client ?`)) {
+            const newClient: Client = {
+                id: Date.now().toString(),
+                name: prospect.companyName || prospect.contactName,
+                email: prospect.email || '',
+                phone: prospect.phone || '',
+                city: prospect.city || '',
+                address: prospect.address || prospect.city || '',
+                type: 'PARTICULIER', // Default
+                notes: `Issu du prospect: ${prospect.contactName}\n${prospect.notes?.[0]?.content || ''}`
+            };
+
+            // 1. Add Client
+            await handleAddClient(newClient);
+
+            // 2. Update Prospect to WON
+            await handleUpdateProspect({ ...prospect, status: ProspectStatus.WON });
+
+            // 3. Navigate/Feedback
+            alert("Client créé avec succès !");
+            setActiveTab('clients');
+        }
+    }, [handleAddClient, handleUpdateProspect]);
 
     // Helper to get email initials
     const getEmailInitials = (email: string) => {
@@ -770,25 +935,32 @@ const App: React.FC = () => {
     const handleAddNote = async (text: string) => {
         if (!currentUser || !text.trim()) return;
 
-        // Use email initials if available, otherwise fallback to full name
-        const displayName = currentUser.email ? getEmailInitials(currentUser.email) : currentUser.fullName;
+        // Priority: Custom Initials -> Username -> Full Name -> Email -> Default
+        let displayName = currentUser.customInitials || currentUser.username || currentUser.fullName;
+        if (!displayName && currentUser.email) {
+            displayName = getEmailInitials(currentUser.email);
+        }
 
         const newNote: SharedNote = {
             id: Date.now().toString(),
             content: text,
-            authorName: displayName,
+            authorName: displayName || 'Utilisateur',
             authorId: currentUser.id,
             createdAt: Date.now()
         };
-        const updatedNotes = [newNote, ...globalNotes].slice(0, 8);
-        setGlobalNotes(updatedNotes);
-        await saveDocument('company', 'dashboard', { id: 'dashboard', notes: updatedNotes });
+
+        // Writes to 'team_messages' collection. 
+        // The real-time listener will automatically update the UI (locally immediately, then synced).
+        try {
+            await saveDocument('team_messages', newNote.id, newNote);
+        } catch (error) {
+            console.error("Failed to save note", error);
+        }
     };
 
     const handleDeleteNote = async (noteId: string) => {
-        const updatedNotes = globalNotes.filter(n => n.id !== noteId);
-        setGlobalNotes(updatedNotes);
-        await saveDocument('company', 'dashboard', { id: 'dashboard', notes: updatedNotes });
+        // Direct delete from collection
+        await deleteDocument('team_messages', noteId);
     };
 
     const handleDeleteUser = async (id: string) => { await deleteDocument('users', id); };
@@ -800,9 +972,27 @@ const App: React.FC = () => {
             return;
         }
         const lowerQuery = query.toLowerCase();
-        const matchedProjects = projects.filter(p => p.title.toLowerCase().includes(lowerQuery) || p.client.name.toLowerCase().includes(lowerQuery));
-        const matchedClients = clients.filter(c => c.name.toLowerCase().includes(lowerQuery));
-        setGlobalSearchResults({ projects: matchedProjects, clients: matchedClients });
+
+        const matchedProjects = projects.filter(p =>
+            p.title.toLowerCase().includes(lowerQuery) ||
+            p.client.name.toLowerCase().includes(lowerQuery) ||
+            p.id.toLowerCase().includes(lowerQuery) ||
+            p.description?.toLowerCase().includes(lowerQuery)
+        );
+
+        const matchedClients = clients.filter(c =>
+            c.name.toLowerCase().includes(lowerQuery) ||
+            c.email?.toLowerCase().includes(lowerQuery) ||
+            c.phone?.toLowerCase().includes(lowerQuery)
+        );
+
+        const matchedEmployees = employees.filter(e =>
+            (e.firstName + ' ' + e.lastName).toLowerCase().includes(lowerQuery) ||
+            e.email?.toLowerCase().includes(lowerQuery) ||
+            e.position.toLowerCase().includes(lowerQuery)
+        );
+
+        setGlobalSearchResults({ projects: matchedProjects, clients: matchedClients, employees: matchedEmployees });
     };
 
     const triggerAutomation = useCallback(async (project: Project) => {
@@ -880,9 +1070,10 @@ const App: React.FC = () => {
                 activeTab={activeTab}
                 setActiveTab={handleTabSwitch}
                 onLogout={handleLogout}
-                isOnline={isOnline}
                 isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
+                isOnline={isOnline}
+                currentUser={currentUser}
             />
 
             <main className="flex-1 md:ml-64 bg-transparent overflow-x-hidden min-h-screen relative w-full">
@@ -902,7 +1093,7 @@ const App: React.FC = () => {
                         <div className="relative max-w-md w-full md:ml-4 flex items-center">
                             <div className="relative w-full">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <input type="text" placeholder="Rechercher..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-900 border-none rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400" />
+                                <input type="text" name="search" autoComplete="off" autoCorrect="off" spellCheck="false" placeholder="Rechercher..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-900 border-none rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400" />
                             </div>
 
                             {/* Manual Refresh Button */}
@@ -915,18 +1106,79 @@ const App: React.FC = () => {
                             </button>
 
                             {globalSearchResults && (
-                                <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-950 dark:bg-slate-900 shadow-xl rounded-xl mt-2 border border-slate-200 dark:border-slate-700 overflow-hidden max-h-64 overflow-y-auto z-50">
-                                    {globalSearchResults.projects.map(p => (
-                                        <button key={p.id} onClick={() => { setSelectedProject(p); setGlobalSearchResults(null); setSearchQuery(''); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b last:border-0 dark:hover:bg-slate-700 dark:border-slate-700">
-                                            <div className="font-bold text-sm text-slate-800 dark:text-white">{p.title}</div>
-                                        </button>
-                                    ))}
+                                <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-900 shadow-xl rounded-xl mt-2 border border-slate-200 dark:border-slate-700 overflow-hidden max-h-96 overflow-y-auto z-50">
+
+                                    {/* PROJECTS RESULTS */}
+                                    {globalSearchResults.projects.length > 0 && (
+                                        <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                            <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">Dossiers</div>
+                                            {globalSearchResults.projects.map(p => (
+                                                <button key={p.id} onClick={() => { setSelectedProject(p); setGlobalSearchResults(null); setSearchQuery(''); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors">
+                                                    <div className="font-bold text-sm text-slate-800 dark:text-white flex justify-between">
+                                                        <span>{p.title}</span>
+                                                        <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">#{p.id.slice(-6)}</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{p.client.name}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* CLIENTS RESULTS */}
+                                    {globalSearchResults.clients.length > 0 && (
+                                        <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                            <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">Clients</div>
+                                            {globalSearchResults.clients.map(c => (
+                                                <button key={c.id} onClick={() => {
+                                                    const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
+                                                    setActiveTab(isPartner ? 'partners' : 'clients');
+                                                    setGlobalSearchResults(null);
+                                                    setSearchQuery('');
+                                                }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors">
+                                                    <div className="font-bold text-sm text-slate-800 dark:text-white">{c.name}</div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-2">
+                                                        <span>{c.email}</span>
+                                                        {c.phone && <span>• {c.phone}</span>}
+                                                        {(c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT') && (
+                                                            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">
+                                                                {c.type === 'SOUS_TRAITANT' ? 'Sous-traitant' : 'Partenaire'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* EMPLOYEES RESULTS */}
+                                    {globalSearchResults.employees.length > 0 && (
+                                        <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                            <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">Salariés / Équipe</div>
+                                            {globalSearchResults.employees.map(e => (
+                                                <button key={e.id} onClick={() => { setActiveTab('employees'); setGlobalSearchResults(null); setSearchQuery(''); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors">
+                                                    <div className="font-bold text-sm text-slate-800 dark:text-white">{e.firstName} {e.lastName}</div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">{e.position}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* NO RESULTS STATE */}
+                                    {globalSearchResults.projects.length === 0 && globalSearchResults.clients.length === 0 && globalSearchResults.employees.length === 0 && (
+                                        <div className="px-4 py-6 text-center text-slate-500 dark:text-slate-400 text-sm italic">
+                                            Aucun résultat trouvé pour "{searchQuery}"
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                     <button onClick={() => setIsProfileModalOpen(true)} className="flex items-center space-x-2 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors">
-                        <div className={`w-8 h-8 rounded-full ${currentUser.avatarColor || 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-sm`}>{currentUser.customInitials || currentUser.fullName.charAt(0)}</div>
+                        {currentUser.avatarUrl ? (
+                            <img src={currentUser.avatarUrl} alt="Profil" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                            <div className={`w-8 h-8 rounded-full ${currentUser.avatarColor || 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-sm`}>{currentUser.customInitials || currentUser.fullName.charAt(0)}</div>
+                        )}
                     </button>
                 </div>
 
@@ -1004,6 +1256,14 @@ const App: React.FC = () => {
                                         onAddEmployee={handleAddEmployee}
                                         onUpdateEmployee={handleUpdateEmployee}
                                         onDeleteEmployee={handleDeleteEmployee}
+                                        expenses={expenses}
+                                        onAddExpense={handleAddExpense}
+                                        onUpdateExpense={handleUpdateExpense}
+                                        onDeleteExpense={handleDeleteExpense}
+                                        attendances={attendances}
+                                        onUpdateAttendance={handleUpdateAttendance}
+                                        onBulkUpdateAttendance={handleBulkUpdateAttendance}
+                                        onBulkDeleteAttendance={handleBulkDeleteAttendance}
                                     />
                                 ) : activeTab === 'administrative' ? (
                                     <AdminPage
@@ -1017,7 +1277,23 @@ const App: React.FC = () => {
                                         projects={projects}
                                         onUpdateProject={updateProject}
                                     />
+                                ) : activeTab === 'expenses' ? (
+                                    <ExpensesPage
+                                        expenses={expenses}
+                                        onAddExpense={handleAddExpense}
+                                        onUpdateExpense={handleUpdateExpense}
+                                        onDeleteExpense={handleDeleteExpense}
+                                    />
+                                ) : activeTab === 'prospection' ? (
+                                    <ProspectionPage
+                                        prospects={prospects}
+                                        onAddProspect={handleAddProspect}
+                                        onUpdateProspect={handleUpdateProspect}
+                                        onDeleteProspect={handleDeleteProspect}
+                                        onConvertToClient={handleConvertToClient}
+                                    />
                                 ) : activeTab === 'settings' && currentUser ? (
+
                                     <SettingsPage currentUser={currentUser} users={users} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} onUpdateUser={handleUpdateUser} />
                                 ) : null}
                             </div>

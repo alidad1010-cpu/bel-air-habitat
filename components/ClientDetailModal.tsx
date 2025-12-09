@@ -215,7 +215,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         }
     };
 
-    const inputClass = "w-full p-2 text-sm bg-white dark:bg-slate-900 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-100 dark:text-white dark:text-white";
+    const inputClass = "w-full p-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white";
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -426,7 +426,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                             zipCode: result.zipCode,
                                                             city: result.city
                                                         })}
-                                                        className={inputClass}
+                                                        className={`${inputClass} pl-10`}
                                                         placeholder="Adresse"
                                                     />
                                                     <div className="flex space-x-2">

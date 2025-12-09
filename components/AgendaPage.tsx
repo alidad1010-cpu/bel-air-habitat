@@ -40,7 +40,7 @@ const AgendaPage: React.FC<AgendaPageProps> = ({ projects, onProjectClick, curre
   const getFirstDayOfMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    let day = new Date(year, month, 1).getDay();
+    const day = new Date(year, month, 1).getDay();
     return day === 0 ? 6 : day - 1;
   };
 

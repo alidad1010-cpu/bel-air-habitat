@@ -38,8 +38,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     const [visiblePasswordId, setVisiblePasswordId] = useState<string | null>(null);
 
     // Input styles ensuring high contrast
-    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white dark:text-white dark:text-white placeholder-slate-400";
-    const labelClass = "block text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white uppercase mb-1";
+    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-400";
+    const labelClass = "block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase mb-1";
 
     const handleCreateUser = (e: React.FormEvent) => {
         e.preventDefault();

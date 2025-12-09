@@ -45,6 +45,7 @@ export interface User {
   email: string;
   lastLogin?: number;
   avatarColor?: string;
+  avatarUrl?: string;
   customInitials?: string;
   integrations?: UserIntegrations;
   personalTasks?: PersonalTask[];
@@ -334,4 +335,105 @@ export interface CompanyAdministrativeData {
   id: string; // usually 'administrative'
   documents: AdminDocument[];
   vehicles: Vehicle[];
+}
+
+// --- EXPENSES MODULE ---
+
+export enum ExpenseType {
+  FIXED = 'FIXE', // Monthly constant (Rent, Insurance)
+  VARIABLE = 'VARIABLE' // One-off (Gas, Material, Restaurant)
+}
+
+export enum ExpenseCategory {
+  FUEL = 'Carburant',
+  RESTAURANT = 'Restaurant',
+  MATERIAL = 'Matériel',
+  RENT = 'Loyer',
+  INSURANCE = 'Assurances',
+  OFFICE = 'Bureau',
+  SERVICES = 'Prestations',
+  TAXES = 'Taxes',
+  OTHER = 'Autre'
+}
+
+// --- PROSPECTION MODULE ---
+
+export enum ProspectStatus {
+  NEW = 'NOUVEAU',             // Nouveaux Leads
+  CONTACTED = 'CONTACTE',      // Prise de Contact
+  OFFER_SENT = 'OFFRE_ENVOYE', // Offre Envoyée
+  NEGOTIATION = 'NEGOCIATION', // Négociation
+  WON = 'GAGNE',               // Gagné / Signé
+  LOST = 'PERDU'               // Perdu
+}
+
+export interface ProspectNote {
+  id: string;
+  content: string;
+  date: number;
+  author?: string;
+}
+
+export interface Prospect {
+  id: string;
+  status: ProspectStatus;
+  companyName?: string;
+  contactName: string;
+  phone?: string;
+  email?: string;
+  city?: string;
+  address?: string;
+
+  // Commercial Data
+  estimatedAmount?: number;
+  nextActionDate?: string; // YYYY-MM-DD
+
+  // History
+  notes?: ProspectNote[];
+
+  // Meta
+  createdAt: number;
+  lastInteraction?: number;
+  source?: string; // e.g. "Import Excel", "Manuel"
+}
+
+
+export interface Expense {
+  id: string;
+  date: string; // ISO Date of the expense
+  merchant: string; // "Total Energies", "Leroy Merlin"
+  amount: number;
+  currency: string;
+  category: ExpenseCategory | string;
+  type: ExpenseType;
+  receiptUrl?: string; // Image/PDF of the receipt
+  notes?: string;
+  vat?: number; // Montant de la TVA
+  createdAt: number;
+  updatedAt?: number;
+  projectId?: string; // Optional link to a project
+  employeeId?: string; // Link to specific employee
+}
+
+export enum AttendanceStatus {
+  PRESENT = 'PRESENT', // Présence Standard
+  PAID_LEAVE = 'CONGES_PAYES',
+  SICK_LEAVE = 'MALADIE',
+  UNJUSTIFIED = 'ABSENCE_INJUSTIFIEE',
+  WEEKEND = 'WEEKEND',
+  HOLIDAY = 'FERIE'
+}
+
+export interface AttendanceRecord {
+  id: string; // `${employeeId}_${date}`
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
+  breakDuration?: number; // minutes
+  totalHours: number; // Calculated
+  overtimeHours?: number; // Calculated
+  notes?: string;
+  updatedAt?: number;
 }

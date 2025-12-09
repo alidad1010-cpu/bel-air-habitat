@@ -79,12 +79,12 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
             case 'ENTREPRISE': return { label: 'Entreprise', class: 'bg-blue-100 text-blue-700' };
             case 'ARCHITECTE': return { label: 'Architecte', class: 'bg-indigo-100 text-indigo-700' };
             case 'SYNDIC': return { label: 'Syndic', class: 'bg-purple-100 text-purple-700' };
-            default: return { label: 'Particulier', class: 'bg-slate-100 text-slate-700 dark:text-slate-200' };
+            default: return { label: 'Particulier', class: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200' };
         }
     };
 
-    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white dark:text-white placeholder-slate-400";
-    const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white uppercase mb-1";
+    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-400";
+    const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase mb-1";
 
     return (
         <div className="space-y-6 animate-fade-in relative">
@@ -95,10 +95,14 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 dark:text-slate-200 dark:text-white" size={18} />
                         <input
                             type="text"
+                            name="client-search"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck="false"
                             placeholder="Rechercher..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm dark:text-white dark:text-white"
+                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 dark:text-white"
                         />
                     </div>
                     <button
