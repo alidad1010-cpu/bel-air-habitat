@@ -144,35 +144,32 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
       contents: `Tu es un assistant expert en extraction de données BTP.
       
       TA MISSION :
-      Analyser cette liste de projets et extraire CHAQUE DOSSIER individuellement sans en inventer ni en dupliquer.
+      Convertir cette liste brute en données structurées JSON pour l'import de chantiers.
       
-      FORMAT D'ENTRÉE :
-      Les données sont présentées en bloc vertical de 10 lignes par projet :
-      Ligne 1 : Date début
-      Ligne 2 : Code affaire
-      Ligne 3 : Nom Client
-      Ligne 4 : Type dossier
-      Ligne 5 : Adresse
-      Ligne 6 : Budget
-      Ligne 7 : Assurance
-      Ligne 8 : Téléphone
-      Ligne 9 : Compétences
-      Ligne 10 : Date fin
+      MODÈLE DE DONNÉES (Basé sur les colonnes de l'image fournie) :
+      1. Date début chantier (ex: 21/01/2026)
+      2. Code affaire (CLEF UNIQUE, format P + 7 chiffres, ex: P0126059)
+      3. Nom (Client)
+      4. Type de dossier (ex: Initial, Annule et remplace)
+      5. Adresse Client (complète)
+      6. Budget intervenant (Montant)
+      7. Assurance (ex: COVEA, AXA...)
+      8. Téléphone Client
+      9. Compétence (ex: Peinture, Sol...)
+      10. Date fin chantier
 
-      RÈGLES CRITIQUES :
-      1. Ne crée PAS de doublons. Si tu vois 20 blocs dans le texte, renvoie 20 objets JSON différents.
-      2. Le "Code affaire" est unique (ex: P0111605). Utilise-le pour ne pas confondre les dossiers.
-      3. "Nom Client" est le nom de la personne (ex: DE LOYSEAU), pas "HOMELIFE".
-      4. "Adresse" doit être complète.
-      5. "Budget" est un nombre (convertis la virgule en point).
+      STRATÉGIE D'ANALYSE INTELLIGENTE :
+      - Le texte peut arriver en "Blocs verticaux" (une info par ligne) OU en "Lignes horizontales" (style Excel).
+      - **POINT D'ANCRAGE** : Utilise le "Code affaire" (ex: P0111605) pour repérer chaque nouveau dossier. C'est le marqueur le plus fiable.
+      - La date qui précède le Code Affaire est souvent la "Date début".
+      - Les infos suivent généralement l'ordre des colonnes ci-dessus.
       
-      Exemple de Sortie Attendue (JSON) :
-      [
-        { "businessCode": "P0111605", "endCustomerName": "DE LOYSEAU", "budget": 295.43, ... },
-        { "businessCode": "P0139664", "endCustomerName": "ANDRINO FERNANDEZ", "budget": 300.00, ... }
-      ]
+      Instructions de Nettoyage :
+      - "skills" : Renvoie un tableau. Si "Peinture, Sol", renvoie ["Peinture", "Sol"].
+      - "budget" : Convertis en nombre (295,43 -> 295.43). Si vide -> 0.
+      - ignore les lignes d'entêtes si elles sont copiées.
 
-      TEXTE À ANALYSER :
+      TEXTE BRUT À TRAITER :
       "${rawText}"`,
       config: {
         responseMimeType: 'application/json',
