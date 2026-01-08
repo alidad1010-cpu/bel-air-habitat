@@ -137,6 +137,7 @@ const AgendaPage: React.FC<AgendaPageProps> = ({ projects, onProjectClick, onUpd
         ProjectStatus.VALIDATED,
         ProjectStatus.IN_PROGRESS,
         ProjectStatus.WAITING_VALIDATION,
+        ProjectStatus.NEW,
       ].includes(p.status);
 
       if (isActiveStatus && p.startDate && p.endDate) {
