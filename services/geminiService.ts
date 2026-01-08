@@ -166,7 +166,7 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
       
       Instructions de Nettoyage :
       - "skills" : Renvoie un tableau. Si "Peinture, Sol", renvoie ["Peinture", "Sol"].
-      - "budget" : Convertis en nombre (295,43 -> 295.43). Si vide -> 0.
+      - "budget" : Renvoie le montant tel quel en chaîne de caractères (ex: "295,43").
       - ignore les lignes d'entêtes si elles sont copiées.
 
       TEXTE BRUT À TRAITER :
@@ -182,7 +182,7 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
               endCustomerName: { type: Type.STRING, description: 'Nom' },
               projectType: { type: Type.STRING, description: 'Type de dossier' },
               siteAddress: { type: Type.STRING, description: 'Adresse Client' },
-              budget: { type: Type.NUMBER, description: 'Budget intervenant' },
+              budget: { type: Type.STRING, description: 'Budget intervenant (ex: "295,43")' },
               phone: { type: Type.STRING, description: 'Téléphone Client' },
               insurance: { type: Type.STRING, description: 'Assurance (Origine)' },
               skills: {
@@ -204,7 +204,21 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
 
     const text = response.text;
     if (!text) return [];
-    return JSON.parse(text) as BulkProjectData[];
+
+    // Parse JSON
+    const rawProjects = JSON.parse(text);
+
+    // Post-process to convert budget string to number
+    return rawProjects.map((p: any) => ({
+      ...p,
+      budget:
+        parseFloat(
+          (p.budget || '0')
+            .toString()
+            .replace(',', '.')
+            .replace(/[^\d.-]/g, '')
+        ) || 0,
+    })) as BulkProjectData[];
   } catch (error) {
     console.error('AI Bulk Import failed:', error);
     return [];
