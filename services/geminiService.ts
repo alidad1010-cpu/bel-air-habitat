@@ -143,26 +143,25 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
       model: MODEL_NAME,
       contents: `Tu es un assistant administratif BTP. Analyse cette liste brute de projets et extrais les données pour chaque dossier.
             
-            IMPORTANT : Les données peuvent être présentées de manière verticale (une information par ligne) ou en colonnes.
-            
-            Séquence type repérée si vertical :
-            1. Date début chantier
-            2. Code affaire (ex: P0111605)
-            3. Nom
-            4. Type de dossier
-            5. Adresse Client
-            6. Budget intervenant
-            7. Assurance
-            8. Téléphone Client
-            9. Compétence(s) / Corps d'état (ex: Peinture, Menuiserie...)
-            10. Date fin chantier
-            ... Et ainsi de suite pour le prochain dossier.
+            FORMAT DÉTECTÉ : Liste verticale répétitive (Blocs de 10 lignes).
+            Si le texte est une suite de valeurs sans clés, applique STRICTEMENT ce schéma de 10 lignes par projet :
 
-            Règles d'extraction :
-            - Détecte les blocs répétitifs de données même s'ils s'étalent sur plusieurs lignes.
-            - Renvoie un tableau JSON strict.
-            - Si une date manque, laisse vide. Si budget manque, met 0.
-            - "skills" doit être un tableau de chaînes de caractères (ex: ["Peinture", "Plomberie"]). Sépare les compétences si elles sont listées ensemble (virgule, espace).
+            1. Date début chantier (ex: 12/01/2026)
+            2. Code affaire (ex: P0111605)
+            3. Nom Client (ex: DE LOYSEAU)
+            4. Type de dossier (ex: Initial, Annule et remplace)
+            5. Adresse Client
+            6. Budget intervenant (ex: 295,43)
+            7. Assurance (ex: COVEA, AXA...)
+            8. Téléphone Client (ex: 06...)
+            9. Compétence(s) (ex: Peinture)
+            10. Date fin chantier (ex: 12/01/2026) -> FIN DU BLOC
+
+            Règles :
+            - Le cycle recommence immédiatement après la ligne "Date fin chantier".
+            - Ignore les 10 premières lignes SI ce ne sont que des entêtes (ex: "Date début chantier", "Code affaire"...).
+            - Convertis les budgets en nombres (remplace virgule par point).
+            - Extrais proprememnt les compétences en tableau.
             
             Texte brut à analyser :
             "${rawText}"`,
