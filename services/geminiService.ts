@@ -141,12 +141,28 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
   try {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Tu es un assistant administratif BTP. Analyse cette liste brute de projets (copiée depuis Excel ou un autre logiciel) et extrais les données pour chaque ligne.
+      contents: `Tu es un assistant administratif BTP. Analyse cette liste brute de projets et extrais les données pour chaque dossier.
             
-            Les données peuvent contenir : Date début chantier, Code affaire, Nom, Type de dossier, Adresse Client, Budget intervenant, Assurance, Téléphone Client, Compétence, Date fin chantier.
+            IMPORTANT : Les données peuvent être présentées de manière verticale (une information par ligne) ou en colonnes.
             
-            Renvoie un tableau JSON strict.
-            Si une date manque, laisse vide. Si budget manque, met 0.
+            Séquence type repérée si vertical :
+            1. Date début chantier
+            2. Code affaire (ex: P0111605)
+            3. Nom
+            4. Type de dossier
+            5. Adresse Client
+            6. Budget intervenant
+            7. Assurance
+            8. Téléphone Client
+            9. Compétence(s) / Corps d'état (ex: Peinture, Menuiserie...)
+            10. Date fin chantier
+            ... Et ainsi de suite pour le prochain dossier.
+
+            Règles d'extraction :
+            - Détecte les blocs répétitifs de données même s'ils s'étalent sur plusieurs lignes.
+            - Renvoie un tableau JSON strict.
+            - Si une date manque, laisse vide. Si budget manque, met 0.
+            - "skills" doit être un tableau de chaînes de caractères (ex: ["Peinture", "Plomberie"]). Sépare les compétences si elles sont listées ensemble (virgule, espace).
             
             Texte brut à analyser :
             "${rawText}"`,
