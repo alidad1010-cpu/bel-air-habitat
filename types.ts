@@ -1,5 +1,3 @@
-
-
 export enum ProjectStatus {
   NEW = 'NOUVEAU',
   IN_PROGRESS = 'EN_COURS',
@@ -9,13 +7,13 @@ export enum ProjectStatus {
   CANCELLED = 'ANNULE',
   LOST = 'PERDU',
   WAITING_VALIDATION = 'EN_VALIDATION',
-  REFUSED = 'REFUSE'
+  REFUSED = 'REFUSE',
 }
 
 export enum ContactMethod {
   EMAIL = 'EMAIL',
   PHONE = 'TELEPHONE',
-  WEBSITE = 'SITE_WEB'
+  WEBSITE = 'SITE_WEB',
 }
 
 export type UserRole = 'ADMIN' | 'USER';
@@ -61,7 +59,15 @@ export interface ClientDocument {
   isValid?: boolean;
 }
 
-export type ClientType = 'PARTICULIER' | 'ENTREPRISE' | 'ARCHITECTE' | 'SYNDIC' | 'SOUS_TRAITANT' | 'PARTENAIRE';
+export type ClientType =
+  | 'PARTICULIER'
+  | 'ENTREPRISE'
+  | 'ARCHITECTE'
+  | 'SYNDIC'
+  | 'SOUS_TRAITANT'
+  | 'PARTENAIRE'
+  | 'BAILLEUR'
+  | 'SCI';
 
 export interface Tenant {
   name: string;
@@ -302,16 +308,16 @@ export interface Employee {
 // --- ADMINISTRATIVE MODULE ---
 
 export type AdminDocType =
-  'KBIS' |
-  'DECENNALE' |
-  'PROBTP' |
-  'CIBTP' |
-  'URSSAF' |
-  'FISCAL' |
-  'OFFICE_INSURANCE' |
-  'OFFICE_LEASE' |
-  'VEHICLE_INSURANCE' |
-  'OTHER';
+  | 'KBIS'
+  | 'DECENNALE'
+  | 'PROBTP'
+  | 'CIBTP'
+  | 'URSSAF'
+  | 'FISCAL'
+  | 'OFFICE_INSURANCE'
+  | 'OFFICE_LEASE'
+  | 'VEHICLE_INSURANCE'
+  | 'OTHER';
 
 export interface AdminDocument {
   id: string;
@@ -341,7 +347,7 @@ export interface CompanyAdministrativeData {
 
 export enum ExpenseType {
   FIXED = 'FIXE', // Monthly constant (Rent, Insurance)
-  VARIABLE = 'VARIABLE' // One-off (Gas, Material, Restaurant)
+  VARIABLE = 'VARIABLE', // One-off (Gas, Material, Restaurant)
 }
 
 export enum ExpenseCategory {
@@ -353,18 +359,18 @@ export enum ExpenseCategory {
   OFFICE = 'Bureau',
   SERVICES = 'Prestations',
   TAXES = 'Taxes',
-  OTHER = 'Autre'
+  OTHER = 'Autre',
 }
 
 // --- PROSPECTION MODULE ---
 
 export enum ProspectStatus {
-  NEW = 'NOUVEAU',             // Nouveaux Leads
-  CONTACTED = 'CONTACTE',      // Prise de Contact
+  NEW = 'NOUVEAU', // Nouveaux Leads
+  CONTACTED = 'CONTACTE', // Prise de Contact
   OFFER_SENT = 'OFFRE_ENVOYE', // Offre Envoyée
   NEGOTIATION = 'NEGOCIATION', // Négociation
-  WON = 'GAGNE',               // Gagné / Signé
-  LOST = 'PERDU'               // Perdu
+  WON = 'GAGNE', // Gagné / Signé
+  LOST = 'PERDU', // Perdu
 }
 
 export interface ProspectNote {
@@ -397,7 +403,6 @@ export interface Prospect {
   source?: string; // e.g. "Import Excel", "Manuel"
 }
 
-
 export interface Expense {
   id: string;
   date: string; // ISO Date of the expense
@@ -421,7 +426,7 @@ export enum AttendanceStatus {
   SICK_LEAVE = 'MALADIE',
   UNJUSTIFIED = 'ABSENCE_INJUSTIFIEE',
   WEEKEND = 'WEEKEND',
-  HOLIDAY = 'FERIE'
+  HOLIDAY = 'FERIE',
 }
 
 export interface AttendanceRecord {

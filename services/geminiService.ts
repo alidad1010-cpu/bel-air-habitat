@@ -1,17 +1,16 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
-import { ContactMethod } from "../types";
+import { GoogleGenAI, Type } from '@google/genai';
+import { ContactMethod } from '../types';
 
 // Initialize the Gemini AI client safely
 // Checks if process is defined to avoid ReferenceError in some browser environments
 const getApiKey = () => {
-  return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || "";
+  return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || '';
 };
 
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 // Define the model to use
-const MODEL_NAME = "gemini-1.5-flash";
+const MODEL_NAME = 'gemini-2.0-flash-exp';
 
 export interface ExtractedProjectData {
   clientName: string;
@@ -36,6 +35,8 @@ export interface BulkProjectData {
   budget: number;
   phone: string;
   projectType: string;
+  insurance?: string;
+  skills?: string[];
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -47,7 +48,7 @@ const fileToBase64 = (file: File): Promise<string> => {
       const base64 = (reader.result as string).split(',')[1];
       resolve(base64);
     };
-    reader.onerror = error => reject(error);
+    reader.onerror = (error) => reject(error);
   });
 };
 
@@ -61,27 +62,40 @@ export const extractProjectDetails = async (rawText: string): Promise<ExtractedP
       
       Texte brut: "${rawText}"`,
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            clientName: { type: Type.STRING, description: "Nom complet du client" },
-            clientEmail: { type: Type.STRING, description: "Email du client" },
-            clientPhone: { type: Type.STRING, description: "Téléphone du client" },
-            clientAddress: { type: Type.STRING, description: "Adresse du chantier" },
-            projectTitle: { type: Type.STRING, description: "Titre court du projet (ex: Peinture Salon)" },
-            projectDescription: { type: Type.STRING, description: "Résumé professionnel de la demande" },
-            contactMethod: { type: Type.STRING, enum: ["EMAIL", "TELEPHONE", "SITE_WEB"] },
-            estimatedBudget: { type: Type.NUMBER, description: "Budget estimé si mentionné, sinon 0" },
-            priority: { type: Type.STRING, enum: ["Haute", "Moyenne", "Basse"], description: "Priorité déduite selon l'urgence" }
+            clientName: { type: Type.STRING, description: 'Nom complet du client' },
+            clientEmail: { type: Type.STRING, description: 'Email du client' },
+            clientPhone: { type: Type.STRING, description: 'Téléphone du client' },
+            clientAddress: { type: Type.STRING, description: 'Adresse du chantier' },
+            projectTitle: {
+              type: Type.STRING,
+              description: 'Titre court du projet (ex: Peinture Salon)',
+            },
+            projectDescription: {
+              type: Type.STRING,
+              description: 'Résumé professionnel de la demande',
+            },
+            contactMethod: { type: Type.STRING, enum: ['EMAIL', 'TELEPHONE', 'SITE_WEB'] },
+            estimatedBudget: {
+              type: Type.NUMBER,
+              description: 'Budget estimé si mentionné, sinon 0',
+            },
+            priority: {
+              type: Type.STRING,
+              enum: ['Haute', 'Moyenne', 'Basse'],
+              description: "Priorité déduite selon l'urgence",
+            },
           },
-          required: ["clientName", "projectTitle", "projectDescription"]
-        }
-      }
+          required: ['clientName', 'projectTitle', 'projectDescription'],
+        },
+      },
     });
 
     const text = response.text;
-    if (!text) throw new Error("No response from AI");
+    if (!text) throw new Error('No response from AI');
 
     const data = JSON.parse(text) as ExtractedProjectData;
 
@@ -92,27 +106,33 @@ export const extractProjectDetails = async (rawText: string): Promise<ExtractedP
 
     return {
       ...data,
-      contactMethod: method
+      contactMethod: method,
     };
   } catch (error: any) {
-    console.error("AI Analysis failed:", error);
+    console.error('AI Analysis failed:', error);
 
     // Handle Rate Limiting gracefully
-    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('Maximum runs')) {
-      alert("⚠️ Le quota d'IA est dépassé pour la minute. Veuillez remplir manuellement ou attendre un instant.");
+    if (
+      error.message?.includes('429') ||
+      error.message?.includes('quota') ||
+      error.message?.includes('Maximum runs')
+    ) {
+      alert(
+        "⚠️ Le quota d'IA est dépassé pour la minute. Veuillez remplir manuellement ou attendre un instant."
+      );
     }
 
     // Return empty fallback structure so the app doesn't crash
     return {
-      clientName: "",
-      clientEmail: "",
-      clientPhone: "",
-      clientAddress: "",
-      projectTitle: "Nouvelle demande",
+      clientName: '',
+      clientEmail: '',
+      clientPhone: '',
+      clientAddress: '',
+      projectTitle: 'Nouvelle demande',
       projectDescription: rawText, // Keep raw text in description
       contactMethod: ContactMethod.PHONE,
       estimatedBudget: 0,
-      priority: 'Moyenne'
+      priority: 'Moyenne',
     };
   }
 };
@@ -123,7 +143,7 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
       model: MODEL_NAME,
       contents: `Tu es un assistant administratif BTP. Analyse cette liste brute de projets (copiée depuis Excel ou un autre logiciel) et extrais les données pour chaque ligne.
             
-            Chaque projet contient potentiellement : Date début, Numéro dossier/affaire, Nom client, Type projet, Adresse, Budget, Origine, Téléphone, Compétences/Corps d'état, Date fin.
+            Les données peuvent contenir : Date début chantier, Code affaire, Nom, Type de dossier, Adresse Client, Budget intervenant, Assurance, Téléphone Client, Compétence, Date fin chantier.
             
             Renvoie un tableau JSON strict.
             Si une date manque, laisse vide. Si budget manque, met 0.
@@ -131,33 +151,41 @@ export const parseProjectList = async (rawText: string): Promise<BulkProjectData
             Texte brut à analyser :
             "${rawText}"`,
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              businessCode: { type: Type.STRING, description: "Numéro de dossier ou code affaire" },
-              endCustomerName: { type: Type.STRING, description: "Nom du client final ou locataire" },
-              projectType: { type: Type.STRING, description: "Type de projet (ex: Sinistre, Rénovation)" },
-              siteAddress: { type: Type.STRING, description: "Adresse complète du chantier" },
-              budget: { type: Type.NUMBER, description: "Montant du devis ou budget" },
-              phone: { type: Type.STRING, description: "Numéro de téléphone du contact" },
-              startDate: { type: Type.STRING, description: "Date de début format YYYY-MM-DD" },
-              endDate: { type: Type.STRING, description: "Date de fin format YYYY-MM-DD" },
-              description: { type: Type.STRING, description: "Description incluant l'origine, les compétences requises et détails" }
-            }
-          }
-        }
-      }
+              businessCode: { type: Type.STRING, description: 'Code affaire' },
+              endCustomerName: { type: Type.STRING, description: 'Nom' },
+              projectType: { type: Type.STRING, description: 'Type de dossier' },
+              siteAddress: { type: Type.STRING, description: 'Adresse Client' },
+              budget: { type: Type.NUMBER, description: 'Budget intervenant' },
+              phone: { type: Type.STRING, description: 'Téléphone Client' },
+              insurance: { type: Type.STRING, description: 'Assurance (Origine)' },
+              skills: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: "Compétences / Corps d'état",
+              },
+              startDate: { type: Type.STRING, description: 'Date début chantier (YYYY-MM-DD)' },
+              endDate: { type: Type.STRING, description: 'Date fin chantier (YYYY-MM-DD)' },
+              description: {
+                type: Type.STRING,
+                description: 'Description générée si besoin',
+              },
+            },
+          },
+        },
+      },
     });
 
     const text = response.text;
     if (!text) return [];
     return JSON.parse(text) as BulkProjectData[];
-
   } catch (error) {
-    console.error("AI Bulk Import failed:", error);
+    console.error('AI Bulk Import failed:', error);
     return [];
   }
 };
@@ -173,23 +201,23 @@ export const extractQuoteAmount = async (file: File): Promise<number | null> => 
           {
             inlineData: {
               mimeType: file.type,
-              data: base64Data
-            }
+              data: base64Data,
+            },
           },
           {
-            text: "Analyse ce devis ou cette facture. Trouve le montant TOTAL HT (Hors Taxes). Retourne UNIQUEMENT le nombre (ex: 1500.50). Si tu ne trouves pas, retourne 0."
-          }
-        ]
+            text: 'Analyse ce devis ou cette facture. Trouve le montant TOTAL HT (Hors Taxes). Retourne UNIQUEMENT le nombre (ex: 1500.50). Si tu ne trouves pas, retourne 0.',
+          },
+        ],
       },
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            amountHT: { type: Type.NUMBER, description: "Le montant total HT du document" }
-          }
-        }
-      }
+            amountHT: { type: Type.NUMBER, description: 'Le montant total HT du document' },
+          },
+        },
+      },
     });
 
     const text = response.text;
@@ -197,12 +225,11 @@ export const extractQuoteAmount = async (file: File): Promise<number | null> => 
 
     const data = JSON.parse(text);
     return data.amountHT || null;
-
   } catch (error) {
-    console.error("AI Quote Analysis failed:", error);
+    console.error('AI Quote Analysis failed:', error);
     return null;
   }
-}
+};
 
 export const generateEmailResponse = async (projectData: ExtractedProjectData): Promise<string> => {
   try {
@@ -216,17 +243,17 @@ export const generateEmailResponse = async (projectData: ExtractedProjectData): 
             Projet: ${projectData.projectTitle}
             Description: ${projectData.projectDescription}
             
-            L'email doit remercier le client, confirmer que la demande est bien prise en compte et indiquer qu'un devis ou un appel suivra sous 24h.`
+            L'email doit remercier le client, confirmer que la demande est bien prise en compte et indiquer qu'un devis ou un appel suivra sous 24h.`,
     });
-    return response.text || "";
+    return response.text || '';
   } catch (e) {
-    console.warn("AI Email Gen failed", e);
+    console.warn('AI Email Gen failed', e);
     return "Bonjour,\n\nMerci pour votre demande. Nous l'avons bien reçue et revenons vers vous rapidement.\n\nCordialement,\nBel Air Habitat";
   }
-}
+};
 
 // --- NEW EXPENSE ANALYSIS ---
-import { ExpenseCategory, ExpenseType } from "../types";
+import { ExpenseCategory, ExpenseType } from '../types';
 
 export interface ExtractedExpenseData {
   date: string;
@@ -239,7 +266,7 @@ export interface ExtractedExpenseData {
   vat?: number;
 }
 
-import { processImageForAI } from "../utils/imageProcessor";
+import { processImageForAI } from '../utils/imageProcessor';
 
 export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpenseData | null> => {
   try {
@@ -249,10 +276,16 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
 
     // Timeout de 60s pour les gros PDF
     const timeoutPromise = new Promise<any>((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout: Le fichier est trop volumineux pour être traité en moins de 60s.")), 60000)
+      setTimeout(
+        () =>
+          reject(
+            new Error('Timeout: Le fichier est trop volumineux pour être traité en moins de 60s.')
+          ),
+        60000
+      )
     );
 
-    const response = await Promise.race([
+    const response = (await Promise.race([
       ai.models.generateContent({
         model: MODEL_NAME,
         contents: {
@@ -260,8 +293,8 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
             {
               inlineData: {
                 mimeType: file.type,
-                data: base64Data
-              }
+                data: base64Data,
+              },
             },
             {
               text: `Agis comme un expert comptable. Analyse ce document (Ticket ou Facture).
@@ -275,19 +308,22 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
               - vat: Montant TVA (numérique, optionnel)
               - category: Catégorie la plus probable (Carburant, Restaurant, Matériel, Loyer, Assurances, Autre)
               
-              Réponds UNIQUEMENT avec le JSON valide, sans markdown.`
-            }
-          ]
-        }
+              Réponds UNIQUEMENT avec le JSON valide, sans markdown.`,
+            },
+          ],
+        },
       }),
-      timeoutPromise
-    ]) as any;
+      timeoutPromise,
+    ])) as any;
 
     let text = response.text;
     if (!text) return null;
 
     // Clean Markdown code blocks if present
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    text = text
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
 
     // Define temporary interface for the raw AI response
     interface AIResponse {
@@ -306,13 +342,13 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
     // Construct final data
     const finalData: ExtractedExpenseData = {
       date: rawData.date || new Date().toISOString().split('T')[0],
-      merchant: rawData.merchant || "Inconnu",
+      merchant: rawData.merchant || 'Inconnu',
       amount: rawData.amount || 0,
-      currency: "EUR", // Default as not requested in prompt
+      currency: 'EUR', // Default as not requested in prompt
       category: rawData.category || ExpenseCategory.OTHER,
       type: ExpenseType.VARIABLE, // Default, logic below could refine
       vat: rawData.vat || 0,
-      notes: rawData.notes || ""
+      notes: rawData.notes || '',
     };
 
     // Auto-enrich notes with detected metadata
@@ -325,15 +361,19 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
     }
 
     // Heuristic for Type (Fixed/Variable)
-    const fixedCategories = [ExpenseCategory.RENT, ExpenseCategory.INSURANCE, "Loyer", "Assurances"];
+    const fixedCategories = [
+      ExpenseCategory.RENT,
+      ExpenseCategory.INSURANCE,
+      'Loyer',
+      'Assurances',
+    ];
     if (fixedCategories.includes(finalData.category as any)) {
       finalData.type = ExpenseType.FIXED;
     }
 
     return finalData;
-
   } catch (error) {
-    console.error("AI Expense Analysis failed:", error);
+    console.error('AI Expense Analysis failed:', error);
     return null; // Let the UI handle manual entry
   }
 };
@@ -360,25 +400,27 @@ export const analyzeProspectNote = async (note: string): Promise<ProspectNoteAna
       Note brute : "${note}"
       `,
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            nextActionDate: { type: Type.STRING, description: "Date de la prochaine action au format YYYY-MM-DD" },
-            estimatedAmount: { type: Type.NUMBER, description: "Montant estimé en euros" },
-            summary: { type: Type.STRING, description: "Résumé court de l'échange" }
-          }
-        }
-      }
+            nextActionDate: {
+              type: Type.STRING,
+              description: 'Date de la prochaine action au format YYYY-MM-DD',
+            },
+            estimatedAmount: { type: Type.NUMBER, description: 'Montant estimé en euros' },
+            summary: { type: Type.STRING, description: "Résumé court de l'échange" },
+          },
+        },
+      },
     });
 
     const text = response.text;
     if (!text) return {};
 
     return JSON.parse(text) as ProspectNoteAnalysis;
-
   } catch (error) {
-    console.warn("AI Prospect Analysis failed", error);
+    console.warn('AI Prospect Analysis failed', error);
     return {};
   }
 };
@@ -410,7 +452,7 @@ export const parseProspectList = async (rawText: string): Promise<BulkProspectDa
       "${rawText.slice(0, 30000)}" 
       `,
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.ARRAY,
           items: {
@@ -423,20 +465,18 @@ export const parseProspectList = async (rawText: string): Promise<BulkProspectDa
               city: { type: Type.STRING },
               status: { type: Type.STRING },
               estimatedAmount: { type: Type.NUMBER },
-              notes: { type: Type.STRING }
-            }
-          }
-        }
-      }
+              notes: { type: Type.STRING },
+            },
+          },
+        },
+      },
     });
 
     const text = response.text;
     if (!text) return [];
     return JSON.parse(text) as BulkProspectData[];
-
   } catch (error) {
-    console.error("AI Prospect Import failed:", error);
+    console.error('AI Prospect Import failed:', error);
     return [];
   }
 };
-

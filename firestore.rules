@@ -36,6 +36,36 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    // PARTNERS
+    match /partners/{partnerId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // TEAM MESSAGES
+    match /team_messages/{messageId} {
+        allow read, write: if isAuthenticated();
+    }
+
+    // EXPENSES
+    match /expenses/{expenseId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // PROSPECTS
+    match /prospects/{prospectId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // ATTENDANCES
+    match /attendances/{attendanceId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // NOTIFICATIONS
+    match /notifications/{notificationId} {
+      allow read, write: if isAuthenticated();
+    }
+
     // COMPANY DATA
     match /company/dashboard {
       allow read, write: if isAuthenticated();
