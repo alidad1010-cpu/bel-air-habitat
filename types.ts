@@ -126,6 +126,8 @@ export interface Appointment {
   title: string; // e.g., "Premier RDV", "Prise de côtes"
   note?: string;
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  visibility?: 'TEAM' | 'PRIVATE'; // NEW: Privacy setting
+  createdBy?: string; // NEW: User ID who created it
 }
 
 export interface ProjectTask {

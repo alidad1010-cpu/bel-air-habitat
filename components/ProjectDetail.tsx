@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
+  Zap,
   Plus,
   Loader2,
   Printer,
@@ -254,12 +255,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Defensive check: moved after hooks
-  if (!project || !project.id)
-    return (
-      <div className="p-8 text-center text-red-500">Erreur: Données du projet manquantes.</div>
-    );
-
   // Sync logic when prop changes
   useEffect(() => {
     if (project && project.id !== formData.id) {
@@ -267,6 +262,46 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
       setSaveStatus('saved');
     }
   }, [project?.id]);
+
+  // Auto-update status based on dates (Business Logic)
+  useEffect(() => {
+    if (!formData.startDate || !formData.endDate) return;
+
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    // Only affect active planning statuses
+    if (
+      [ProjectStatus.NEW, ProjectStatus.VALIDATED, ProjectStatus.IN_PROGRESS].includes(
+        formData.status
+      )
+    ) {
+      // Future Project -> VALIDATED (A Venir)
+      if (start > now) {
+        if (formData.status !== ProjectStatus.VALIDATED) {
+          setFormData((prev) => ({ ...prev, status: ProjectStatus.VALIDATED }));
+          setSaveStatus('modified');
+        }
+      }
+      // Current Project -> IN_PROGRESS (En Cours)
+      else if (start <= now && end >= now) {
+        if (formData.status !== ProjectStatus.IN_PROGRESS) {
+          setFormData((prev) => ({ ...prev, status: ProjectStatus.IN_PROGRESS }));
+          setSaveStatus('modified');
+        }
+      }
+    }
+  }, [formData.startDate, formData.endDate]);
+
+  // Defensive check: moved after hooks
+  if (!project || !project.id)
+    return (
+      <div className="p-8 text-center text-red-500">Erreur: Données du projet manquantes.</div>
+    );
 
   // Optimized for Mobile: text-base on mobile avoids zoom, text-sm on desktop
   const inputClass =
@@ -1049,12 +1084,20 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
     if (s === ProjectStatus.NEW) {
       return (
-        <button
-          onClick={() => handleStatusChange(ProjectStatus.QUOTE_SENT)}
-          className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center print:hidden"
-        >
-          <Upload size={16} className="mr-2" /> Devis Envoyé
-        </button>
+        <div className="flex space-x-2 print:hidden">
+          <button
+            onClick={() => handleStatusChange(ProjectStatus.QUOTE_SENT)}
+            className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center"
+          >
+            <Upload size={16} className="mr-2" /> Devis Envoyé
+          </button>
+          <button
+            onClick={() => handleStatusChange(ProjectStatus.IN_PROGRESS)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center"
+          >
+            <Zap size={16} className="mr-2" /> Production Directe
+          </button>
+        </div>
       );
     }
 

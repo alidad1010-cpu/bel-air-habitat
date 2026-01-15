@@ -10,7 +10,7 @@ const getApiKey = () => {
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 // Define the model to use
-const MODEL_NAME = 'gemini-2.0-flash-exp';
+const MODEL_NAME = 'gemini-2.0-flash';
 
 export interface ExtractedProjectData {
   clientName: string;
@@ -137,92 +137,384 @@ export const extractProjectDetails = async (rawText: string): Promise<ExtractedP
   }
 };
 
+// --- FALLBACK PARSER (Regex/Heuristic) ---
+const parseFallback = (text: string): BulkProjectData[] => {
+  const projects: BulkProjectData[] = [];
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l);
+
+  // Pattern for Code Affaire: P followed by 5-9 digits, flexible spaces
+  const codeRegex = /(P\s?\d{5,9})/i;
+  // Pattern for Date: DD/MM/YYYY or DD/MM/YY or YYYY-MM-DD (supports dots and spaces) with boundaries
+  const dateRegexGlobal =
+    /((\b\d{4}[\/\s.-]\d{2}[\/\s.-]\d{2}\b)|(\b\d{2}[\/\s.-]\d{2}[\/\s.-]\d{2,4}\b))/g;
+  // Pattern for Phone: 06 12 34 56 78 or similar
+  const phoneRegex = /(0[1-9][\s.]?(\d{2}[\s.]?){4})/;
+  // Pattern for Budget: digits with comma/dot
+  const budgetRegex = /(\d{1,7}[,.]\d{2})/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check if line CONTAINS a code
+    const codeMatch = line.match(codeRegex);
+    if (codeMatch) {
+      const rawCode = codeMatch[0];
+      const code = rawCode.replace(/\s/g, '').toUpperCase();
+
+      let startDate = '';
+      let endDate = '';
+      let phone = '';
+      let budget = 0;
+      let clientName = 'Client Inconnu';
+      let siteAddress = '';
+      let projectType = 'Chantier';
+      let skills: string[] = [];
+
+      // --- STRATEGY A: HORIZONTAL ROW (Excel Copy-Paste) ---
+      // If the line is long and contains other indicators, parse the LINE itself.
+      const isHorizontal =
+        line.length > 30 &&
+        (dateRegexGlobal.test(line) || phoneRegex.test(line) || budgetRegex.test(line));
+
+      if (isHorizontal) {
+        // 1. Extract Dates from line
+        const datesFound = line.match(dateRegexGlobal);
+        if (datesFound) {
+          if (datesFound.length > 0) startDate = datesFound[0];
+          // If 2 dates found, the second is EndDate.
+          if (datesFound.length > 1) endDate = datesFound[1];
+        }
+
+        // 2. Extract Phone from line
+        const phoneMatch = line.match(phoneRegex);
+        if (phoneMatch) phone = phoneMatch[0];
+
+        // 3. Extract Budget from line
+        // Be careful not to mix with phone numbers. Budget usually has decimal ,00
+        // Simple heuristic: look for "300,00" or "3 024,29"
+        const budgetMatch = line.match(budgetRegex);
+        if (budgetMatch) {
+          const val = parseFloat(budgetMatch[0].replace(',', '.'));
+          if (!isNaN(val)) budget = val;
+        }
+
+        // 4. Smart parsing of the remaining text (Name, Address, Type, Skills)
+        let cleanerLine = line
+          .replace(rawCode, '')
+          .replace(datesFound ? datesFound[0] : '', '') // Remove Start Date
+          .replace(datesFound && datesFound.length > 1 ? datesFound[1] : '', '') // Remove End Date
+          .replace(phoneMatch ? phoneMatch[0] : '', '')
+          .replace(budgetMatch ? budgetMatch[0] : '', '');
+
+        // Split by tabs or multiple spaces
+        const parts = cleanerLine
+          .split(/(\t|\s{2,})/)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 1 && !/^\s*$/.test(p));
+
+        // Loop through parts to categorize
+        parts.forEach((part) => {
+          const lower = part.toLowerCase();
+
+          // FILTER: Ignore useless words requested by user ("Annule et remplace", "Initiale")
+          if (lower.includes('annule') || lower.includes('initial') || lower.includes('remplace')) {
+            return;
+          }
+
+          // Check for Type
+          if (/sinistre|renovation/i.test(part)) {
+            projectType = part;
+            return;
+          }
+
+          // Check for Address (Zip Code or Street keyword)
+          if (
+            /\d{5}/.test(part) ||
+            /\b(rue|avenue|bd|boulevard|allée|impasse|place)\b/i.test(part)
+          ) {
+            siteAddress = part;
+            return;
+          }
+
+          // Check for Skills (comma separated list or known skills)
+          if (part.includes(',') || /\b(peinture|sol|plomberie|elec|menuiserie)\b/i.test(part)) {
+            // If it looks like a list or specific skill, treat as skills
+            // But be careful not to mistake " Rue de la Paix, Paris" for skills
+            if (!/\d{5}/.test(part) && !/\b(rue|avenue)\b/i.test(part)) {
+              skills = part.split(',').map((s) => s.trim());
+              return;
+            }
+          }
+
+          // Default: Assume Name if it's the first unknown part or looks like a name
+          if (clientName === 'Client Inconnu') {
+            clientName = part;
+          }
+        });
+      } else {
+        // --- STRATEGY B: VERTICAL BLOCK (Mobile/Email Copy) ---
+        // Local regex must match global pattern logic;
+        const localDateRegex =
+          /((\b\d{4}[\/\s.-]\d{2}[\/\s.-]\d{2}\b)|(\b\d{2}[\/\s.-]\d{2}[\/\s.-]\d{2,4}\b))/;
+
+        // 1. Look for explicit date in surrounding lines (Start Date)
+        if (i > 0 && localDateRegex.test(lines[i - 1])) {
+          const match = lines[i - 1].match(localDateRegex);
+          if (match) startDate = match[0];
+        }
+
+        // 2. Client Name is usually the NEXT line
+        if (i < lines.length - 1) {
+          if (!localDateRegex.test(lines[i + 1]) && !codeRegex.test(lines[i + 1])) {
+            clientName = lines[i + 1];
+          }
+        }
+
+        // 3. Search downwards for Budget, Address, Phone, AND End Date
+        for (let j = 1; j <= 12; j++) {
+          if (i + j >= lines.length) break;
+          const l = lines[i + j];
+
+          // Stop if we hit next project code
+          if (codeRegex.test(l)) break;
+
+          // Check for End Date (Second date found in block)
+          if (localDateRegex.test(l)) {
+            const dMatch = l.match(localDateRegex);
+            // If we found a date
+            if (dMatch) {
+              // Check if it's diff from startDate to be sure it's endDate (or just the second date found)
+              // Simple logic: if startDate is empty, it fills startDate?
+              // Actually in vertical block strategy, startDate is usually ABOVE the P-Code.
+              // So any date BELOW is likely EndDate.
+              endDate = dMatch[0];
+            }
+          }
+
+          // Check for Budget
+          if (!budget && /^[\d\s]+,\d{2}$/.test(l)) {
+            const clean = parseFloat(l.replace(/\s/g, '').replace(',', '.'));
+            if (!isNaN(clean) && clean > 0) budget = clean;
+          }
+
+          // Check for Project Type
+          if (
+            /Sinistre|Renovation|SAV/i.test(l) &&
+            !localDateRegex.test(l) &&
+            !budgetRegex.test(l)
+          ) {
+            projectType = l;
+          }
+
+          // Check for Address
+          if (
+            !siteAddress &&
+            (/\d{5}/.test(l) || /(RUE|AVENUE|BD|BOULEVARD|ALLÉE|IMPASSE|PLACE)/i.test(l))
+          ) {
+            siteAddress = l;
+          }
+
+          // Check for Phone
+          if (!phone && phoneRegex.test(l)) {
+            const pMatch = l.match(phoneRegex);
+            if (pMatch) phone = pMatch[0];
+          }
+        }
+      }
+
+      // Smart Date Deduction (Backfill if missing)
+      if (!startDate && code.length >= 5) {
+        const monthStr = code.substring(1, 3);
+        const yearStr = code.substring(3, 5);
+        if (!isNaN(parseInt(monthStr)) && !isNaN(parseInt(yearStr))) {
+          startDate = `01/${monthStr}/20${yearStr}`;
+        }
+      }
+
+      projects.push({
+        businessCode: code,
+        endCustomerName: clientName,
+        startDate: startDate || new Date().toLocaleDateString('fr-FR'),
+        endDate: endDate, // Use the extracted endDate
+        budget: budget,
+        siteAddress: siteAddress || 'Adresse à vérifier',
+        skills: skills,
+        phone: phone,
+        description: isHorizontal ? 'Importé (Ligne)' : 'Importé (Bloc)',
+        projectType: projectType,
+        insurance: '',
+      });
+    }
+  }
+  return projects;
+};
+
+// --- MERGED EXPORT FOR AI + FALLBACK ---
 export const parseProjectList = async (rawText: string): Promise<BulkProjectData[]> => {
+  let aiProjects: BulkProjectData[] = [];
   try {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Tu es un assistant expert en extraction de données BTP.
+      contents: `Tu es un expert en saisie de données BTP.
       
-      TA MISSION :
-      Convertir cette liste brute en données structurées JSON pour l'import de chantiers.
+      TA TÂCHE :
+      Transforme le texte ci-dessous en un tableau JSON d'objets.
       
-      MODÈLE DE DONNÉES (Basé sur les colonnes de l'image fournie) :
-      1. Date début chantier (ex: 21/01/2026)
-      2. Code affaire (CLEF UNIQUE, format P + 7 chiffres, ex: P0126059)
-      3. Nom (Client)
-      4. Type de dossier (ex: Initial, Annule et remplace)
-      5. Adresse Client (complète)
-      6. Budget intervenant (Montant)
-      7. Assurance (ex: COVEA, AXA...)
-      8. Téléphone Client
-      9. Compétence (ex: Peinture, Sol...)
-      10. Date fin chantier
-
-      STRATÉGIE D'ANALYSE INTELLIGENTE :
-      - Le texte peut arriver en "Blocs verticaux" (une info par ligne) OU en "Lignes horizontales" (style Excel).
-      - **POINT D'ANCRAGE** : Utilise le "Code affaire" (ex: P0111605) pour repérer chaque nouveau dossier. C'est le marqueur le plus fiable.
-      - La date qui précède le Code Affaire est souvent la "Date début".
-      - Les infos suivent généralement l'ordre des colonnes ci-dessus.
+      LE TEXTE SOURCE :
+      Le format peut être :
+      1. Tableau Horizontal (copier-coller Excel) : Une ligne = Un chantier.
+      2. Blocs Verticaux : Données listées les unes sous les autres.
       
-      Instructions de Nettoyage :
-      - "skills" : Renvoie un tableau. Si "Peinture, Sol", renvoie ["Peinture", "Sol"].
-      - "budget" : Renvoie le montant tel quel en chaîne de caractères (ex: "295,43").
-      - ignore les lignes d'entêtes si elles sont copiées.
-
-      TEXTE BRUT À TRAITER :
-      "${rawText}"`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              businessCode: { type: Type.STRING, description: 'Code affaire' },
-              endCustomerName: { type: Type.STRING, description: 'Nom' },
-              projectType: { type: Type.STRING, description: 'Type de dossier' },
-              siteAddress: { type: Type.STRING, description: 'Adresse Client' },
-              budget: { type: Type.STRING, description: 'Budget intervenant (ex: "295,43")' },
-              phone: { type: Type.STRING, description: 'Téléphone Client' },
-              insurance: { type: Type.STRING, description: 'Assurance (Origine)' },
-              skills: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "Compétences / Corps d'état",
-              },
-              startDate: { type: Type.STRING, description: 'Date début chantier (YYYY-MM-DD)' },
-              endDate: { type: Type.STRING, description: 'Date fin chantier (YYYY-MM-DD)' },
-              description: {
-                type: Type.STRING,
-                description: 'Description générée si besoin',
-              },
-            },
-          },
-        },
-      },
+      REPÈRES IMPORTANTS : 
+      - "Code Affaire" (Pxxxxxxx).
+      
+      FORMAT DE SORTIE ATTENDU (JSON BRUT UNIQUEMENT) :
+      [
+        {
+          "businessCode": "P0124xx",
+          "endCustomerName": "Nom Client",
+          "startDate": "dd/mm/yyyy",
+          "endDate": "dd/mm/yyyy",
+          "siteAddress": "Adresse...",
+          "budget": 1200.50,
+          "phone": "06...",
+          "projectType": "Sinistre/Renovation",
+          "description": "...",
+          "skills": ["Peinture", "Sol"]
+        }
+      ]
+      
+      RÈGLES IMPÉRATIVES :
+      1. Réponds UNIQUEMENT avec le JSON. Pas de texte avant, pas de "Voici le JSON".
+      2. Si tu trouves plusieurs projets, mets-les tous dans le tableau (un objet par projet).
+      3. Convertis les budgets en nombres (remplace la virgule par un point).
+      4. Extrais scrupuleusement les dates de début et de fin si présentes.
+      5. IGNORE les termes inutiles comme "Annule et remplace" ou "Initiale" (ne les mets pas dans description ou type).
+      6. Si une info manque, mets null ou une chaine vide.
+      
+      TEXTE INITIAL À TRAITER :
+      """
+      ${rawText.slice(0, 30000)}
+      """`,
     });
 
-    const text = response.text;
-    if (!text) return [];
+    let text = response.text;
+    if (text) {
+      text = text
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+      const firstBracket = text.indexOf('[');
+      const lastBracket = text.lastIndexOf(']');
 
-    // Parse JSON
-    const rawProjects = JSON.parse(text);
-
-    // Post-process to convert budget string to number
-    return rawProjects.map((p: any) => ({
-      ...p,
-      budget:
-        parseFloat(
-          (p.budget || '0')
-            .toString()
-            .replace(',', '.')
-            .replace(/[^\d.-]/g, '')
-        ) || 0,
-    })) as BulkProjectData[];
+      if (firstBracket !== -1 && lastBracket !== -1) {
+        const jsonString = text.substring(firstBracket, lastBracket + 1);
+        const parsed = JSON.parse(jsonString);
+        if (Array.isArray(parsed)) {
+          aiProjects = parsed.map((p: any) => ({
+            businessCode: p.businessCode || '',
+            endCustomerName: p.clientName || p.endCustomerName || 'Client Inconnu',
+            siteAddress: p.siteAddress || '',
+            description: p.description || '',
+            startDate: p.startDate || '',
+            endDate: p.endDate || '',
+            budget:
+              typeof p.budget === 'number'
+                ? p.budget
+                : parseFloat(
+                    (p.budget || '0')
+                      .toString()
+                      .replace(',', '.')
+                      .replace(/[^\d.-]/g, '')
+                  ) || 0,
+            phone: p.phone || '',
+            projectType: p.projectType || '', // Allow empty to let fallback mechanics works if needed (though mapped to Folder Type)
+            insurance: p.insurance || '',
+            skills: p.skills || [],
+          }));
+        }
+      }
+    }
   } catch (error) {
-    console.error('AI Bulk Import failed:', error);
-    return [];
+    console.warn('AI Bulk Import failed, switching to fallback:', error);
   }
+
+  // Double Check: Run fallback parser to capture specific strict data
+  const fallbackProjects = parseFallback(rawText);
+
+  // If AI failed completely, return fallback
+  if (aiProjects.length === 0) {
+    console.log('AI returned 0 projects. Using fallback parser.');
+    return fallbackProjects;
+  }
+
+  // MERGE: Enrich AI results with Fallback precisions (specifically Dates, Type, Address)
+  return aiProjects.map((aiProj) => {
+    const match = fallbackProjects.find((fp) => fp.businessCode === aiProj.businessCode);
+
+    // Initial merge logic
+    let finalProject = match
+      ? {
+          ...aiProj,
+          // Prioritize Regex Type if detected (it catches "Annule", "Initial" etc)
+          projectType:
+            match.projectType && match.projectType !== 'Chantier'
+              ? match.projectType
+              : aiProj.projectType || match.projectType,
+          // Prioritize Regex Dates if AI is empty or weird
+          startDate: aiProj.startDate || match.startDate,
+          endDate: aiProj.endDate || match.endDate,
+          // Prioritize Regex Budget if AI missed it
+          budget: aiProj.budget || match.budget,
+          // Prioritize Regex Address if AI missed it
+          siteAddress: aiProj.siteAddress || match.siteAddress,
+          // Merge skills
+          skills: [...new Set([...(aiProj.skills || []), ...(match.skills || [])])],
+        }
+      : aiProj;
+
+    // --- STRICT CLEANING STEP ---
+    const forbiddenTerms = ['annule', 'initial', 'remplace'];
+
+    // Helper to check if string contains forbidden terms (case insensitive)
+    const containsForbidden = (str: string) =>
+      forbiddenTerms.some((term) => str.toLowerCase().includes(term));
+    // Helper to clean a string from forbidden terms
+    const cleanString = (str: string) => {
+      let result = str;
+      forbiddenTerms.forEach((term) => {
+        const reg = new RegExp(term, 'gi');
+        result = result.replace(reg, '');
+      });
+      return result.trim();
+    };
+
+    // 1. Clean Address specially
+    if (finalProject.siteAddress && containsForbidden(finalProject.siteAddress)) {
+      // If the address is JUST "Annule et remplace" or close to it, clear it.
+      if (finalProject.siteAddress.length < 25 && containsForbidden(finalProject.siteAddress)) {
+        finalProject.siteAddress = '';
+      } else {
+        // Otherwise, just remove the word
+        finalProject.siteAddress = cleanString(finalProject.siteAddress);
+      }
+    }
+
+    // 2. Clean Name
+    if (finalProject.endCustomerName && containsForbidden(finalProject.endCustomerName)) {
+      finalProject.endCustomerName = cleanString(finalProject.endCustomerName);
+    }
+
+    // 3. Clean Description
+    if (finalProject.description && containsForbidden(finalProject.description)) {
+      finalProject.description = cleanString(finalProject.description);
+    }
+
+    return finalProject;
+  });
 };
 
 export const extractQuoteAmount = async (file: File): Promise<number | null> => {

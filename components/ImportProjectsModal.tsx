@@ -36,31 +36,136 @@ const ImportProjectsModal: React.FC<ImportProjectsModalProps> = ({
           ? matchedClient.id
           : Date.now().toString() + Math.random().toString(36).substr(2, 5);
 
+        // Parse Status based on Dates
+        let status = ProjectStatus.VALIDATED; // Default for P-Codes (Signed)
+        let start: Date | null = null;
+        let end: Date | null = null;
+
+        if (raw.startDate) {
+          // Robust Date Parsing (DD/MM/YYYY or YYYY-MM-DD or DD MM YYYY)
+          let d, m, y;
+          const cleanDate = raw.startDate.trim().replace(/[.\s]/g, '/').replace(/-/g, '/');
+
+          if (cleanDate.includes('/')) {
+            const parts = cleanDate.split('/').map(Number);
+            if (parts.length === 3) {
+              if (parts[0] > 1000) {
+                // YYYY-MM-DD
+                [y, m, d] = parts;
+              } else {
+                // DD-MM-YYYY
+                [d, m, y] = parts;
+              }
+            }
+          }
+
+          // Handle 2-digit years (e.g. 24 -> 2024)
+          if (y && y < 100) y += 2000;
+
+          // Safety check
+          if (!d || !m || !y || isNaN(d) || isNaN(m) || isNaN(y)) {
+            const now = new Date();
+            d = now.getDate();
+            m = now.getMonth() + 1;
+            y = now.getFullYear();
+          }
+
+          start = new Date(y, m - 1, d);
+          start.setHours(0, 0, 0, 0);
+
+          end = new Date(start);
+
+          if (raw.endDate) {
+            const cleanEnd = raw.endDate.trim().replace(/[.\s]/g, '/').replace(/-/g, '/');
+            let ed, em, ey;
+
+            if (cleanEnd.includes('/')) {
+              const parts = cleanEnd.split('/').map(Number);
+              if (parts.length === 3) {
+                if (parts[0] > 1000) {
+                  [ey, em, ed] = parts;
+                } else {
+                  [ed, em, ey] = parts;
+                }
+              }
+            }
+
+            // Handle 2-digit years for End Date (e.g. 25 -> 2025)
+            if (ey && ey < 100) ey += 2000;
+
+            if (ed && em && ey && !isNaN(ed) && !isNaN(em) && !isNaN(ey)) {
+              end = new Date(ey, em - 1, ed);
+              end.setHours(0, 0, 0, 0);
+            }
+          }
+
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+
+          if (end && end.getTime() < now.getTime()) {
+            status = ProjectStatus.COMPLETED;
+          } else if (
+            start &&
+            end &&
+            now.getTime() >= start.getTime() &&
+            now.getTime() <= end.getTime()
+          ) {
+            status = ProjectStatus.IN_PROGRESS;
+          } else if (start && start.getTime() > now.getTime()) {
+            status = ProjectStatus.VALIDATED;
+          }
+        }
+
+        const nameUpper = (
+          matchedClient ? matchedClient.name : raw.endCustomerName || ''
+        ).toUpperCase();
+        const isHomelife = nameUpper.includes('HOMELIFE') || nameUpper.includes('HOME LIFE');
+        const isJLS = nameUpper.includes('JLS') || nameUpper.includes('ARTISAN'); // Catch JLS ARTISAN
+
+        let clientType: any = 'PARTICULIER';
+        let customVat = 20;
+
+        if (isHomelife) {
+          clientType = 'ENTREPRISE'; // User considers Homelife a Client
+          customVat = 0; // Subcontracting rule
+        } else if (isJLS) {
+          clientType = 'PARTENAIRE';
+        }
+
+        // Helper for Dates
+        const toISODate = (d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
         return {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-          title: `${raw.projectType || 'Chantier'} - ${raw.endCustomerName}`,
+          title: matchedClient ? matchedClient.name : raw.endCustomerName || 'Chantier',
           description: raw.description || `Importé. Assurance/Origine: ${raw.insurance || 'N/A'}`,
           businessCode: raw.businessCode,
-          status: ProjectStatus.NEW,
-          contactMethod: ContactMethod.PHONE, // Default to phone
+          status: status,
+          contactMethod: ContactMethod.PHONE,
           priority: 'Moyenne',
           createdAt: Date.now(),
           budget: raw.budget,
           siteAddress: raw.siteAddress,
-          folderType: raw.projectType || 'Particulier',
+          vatRate: customVat,
+          folderType: matchedClient?.type || clientType,
           origin: raw.insurance,
           skills: raw.skills,
-          startDate: raw.startDate,
-          endDate: raw.endDate,
+          startDate: start ? toISODate(start) : '',
+          endDate: end ? toISODate(end) : '',
 
           client: matchedClient || {
             id: clientId,
             name: raw.endCustomerName || 'Client Inconnu',
             phone: raw.phone || '',
-            email: '', // Not provided in this specific import format usually, but handled if missing
+            email: '',
             address: raw.siteAddress || '',
             city: '',
-            type: 'PARTICULIER',
+            type: clientType,
           },
         };
       });
@@ -104,8 +209,8 @@ const ImportProjectsModal: React.FC<ImportProjectsModalProps> = ({
                   <strong>Instructions :</strong> Copiez-collez vos lignes Excel ci-dessous. <br />
                   L'IA va détecter automatiquement :{' '}
                   <em>
-                    Date début, Code affaire, Nom, Type dossier, Adresse, Budget, Assurance,
-                    Téléphone, Compétence, Date fin
+                    Date début, Code affaire, Nom, Adresse, Budget, Assurance, Téléphone,
+                    Compétence, Date fin
                   </em>
                   .
                 </p>

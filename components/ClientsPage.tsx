@@ -45,8 +45,6 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   // Filter Tabs: 'ALL' | 'CLIENTS'
-  const [activeTab, setActiveTab] = useState<'ALL' | 'CLIENTS'>('ALL');
-
   const [newClient, setNewClient] = useState<Client>({
     name: '',
     email: '',
@@ -76,11 +74,7 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
       // 2. Identify Partners/Subcontractors
       const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
 
-      // 3. User Requirement: "les sous traitant laisse dans partenaires"
-      // REVISION (Dec 2025): "tout les dossier cree ou client doivent etre dans client"
-      // -> We only hide partners if the user explicitly switches to the 'CLIENTS' tab.
-      // -> In the default 'ALL' tab, we show everyone.
-
+      // 3. User Requirement: Strictly separate Partners from Clients Page
       // EXCEPTION: Always show "Coop", "Syndic", or "Cop" (Syndics often misclassified)
       const nameLower = (c.name || '').toLowerCase();
       const normalizedName = nameLower.replace(/[^a-z0-9]/g, '');
@@ -94,8 +88,8 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
         return true;
       }
 
-      // Only hide Partners/Subcontractors if we are strictly filtering for 'CLIENTS'
-      if (activeTab === 'CLIENTS' && isPartner) return false;
+      // Hide Partners/Subcontractors from this page (they belong in PartnersPage)
+      if (isPartner) return false;
 
       // 4. Default: Show everything else (BAILLEUR, SCI, PARTICULIER, ENTREPRISE, etc.)
       return true;
@@ -180,22 +174,6 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
             Ajouter
           </button>
         </div>
-      </div>
-
-      {/* TAB SWITCHER */}
-      <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit">
-        <button
-          onClick={() => setActiveTab('ALL')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'ALL' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-emerald-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:text-white dark:text-white'}`}
-        >
-          Tous
-        </button>
-        <button
-          onClick={() => setActiveTab('CLIENTS')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${activeTab === 'CLIENTS' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-emerald-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:text-white dark:text-white'}`}
-        >
-          <Users size={16} className="mr-2" /> Clients
-        </button>
       </div>
 
       {/* Clients List */}

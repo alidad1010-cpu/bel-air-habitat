@@ -142,7 +142,16 @@ const ProjectList: React.FC<ProjectListProps> = ({
                   </span>
                 </td>
                 <td className="px-4 py-4 text-slate-700 dark:text-slate-200 dark:text-white truncate max-w-[200px] hidden md:table-cell">
-                  {project.client.city || project.client.address}
+                  {(() => {
+                    const rawAddr =
+                      project.siteAddress || project.client.city || project.client.address;
+                    if (!rawAddr) return '-';
+                    // Try to extract city from "Address 75000 CITY"
+                    const match = rawAddr.match(/\d{5}\s+(.+)/);
+                    if (match && match[1]) return match[1].toUpperCase(); // Return "PARIS"
+                    // Fallback: matches "CITY" if no zip, or just return raw
+                    return rawAddr.replace(/^.*,\s*/, ''); // simplistic CSV fallback
+                  })()}
                 </td>
                 <td className="px-4 py-4 text-slate-800 dark:text-slate-100 dark:text-white font-bold">
                   {project.budget
