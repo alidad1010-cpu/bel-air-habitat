@@ -7,10 +7,11 @@ const getApiKey = () => {
   return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || '';
 };
 
+// Create AI client
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 // Define the model to use
-const MODEL_NAME = 'gemini-2.0-flash';
+const MODEL_NAME = 'gemini-2.0-flash-exp';
 
 export interface ExtractedProjectData {
   clientName: string;
@@ -597,57 +598,77 @@ import { processImageForAI } from '../utils/imageProcessor';
 
 export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpenseData | null> => {
   try {
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!API_KEY) {
+      console.error('VITE_GEMINI_API_KEY not configured');
+      return null;
+    }
+
     // 1. Pre-process image (HEIC -> JPG, Resize, Compress)
     const processedFile = await processImageForAI(file);
     const base64Data = await fileToBase64(processedFile);
 
-    // Timeout de 60s pour les gros PDF
+    // 2. Direct REST API call (plus fiable que le SDK)
     const timeoutPromise = new Promise<any>((_, reject) =>
-      setTimeout(
-        () =>
-          reject(
-            new Error('Timeout: Le fichier est trop volumineux pour être traité en moins de 60s.')
-          ),
-        60000
-      )
+      setTimeout(() => reject(new Error('Timeout: 60s dépassé')), 60000)
     );
 
-    const response = (await Promise.race([
-      ai.models.generateContent({
-        model: MODEL_NAME,
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: file.type,
-                data: base64Data,
-              },
-            },
-            {
-              text: `Agis comme un expert comptable. Analyse ce document (Ticket ou Facture).
-              Extrais les données au format JSON uniquement.
-              
-              Champs requis :
-              - docType: "Ticket" ou "Facture"
-              - date: Date au format YYYY-MM-DD
-              - merchant: Nom du commerçant
-              - amount: Montant total TTC (numérique)
-              - vat: Montant TVA (numérique, optionnel)
-              - category: Catégorie la plus probable (Carburant, Restaurant, Matériel, Loyer, Assurances, Autre)
-              
-              Réponds UNIQUEMENT avec le JSON valide, sans markdown.`,
-            },
-          ],
-        },
-      }),
-      timeoutPromise,
-    ])) as any;
+    const apiCall = async () => {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: processedFile.type,
+                    data: base64Data
+                  }
+                },
+                {
+                  text: `Agis comme un expert comptable. Analyse ce document (Ticket ou Facture).
+Extrais les données au format JSON uniquement.
 
-    let text = response.text;
-    if (!text) return null;
+Champs requis :
+- docType: "Ticket" ou "Facture"
+- date: Date au format YYYY-MM-DD
+- merchant: Nom du commerçant
+- amount: Montant total TTC (nombre décimal)
+- vat: Montant TVA (nombre ou null)
+- category: "Carburant", "Restaurant", "Matériel", "Loyer", "Assurances", "Télécoms", "Énergie", ou "Autre"
+
+Réponds UNIQUEMENT avec JSON valide, sans markdown.
+Exemple: {"docType":"Ticket","date":"2026-01-16","merchant":"Carrefour","amount":45.67,"vat":null,"category":"Restaurant"}`
+                }
+              ]
+            }]
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    };
+    
+    const response = await Promise.race([apiCall(), timeoutPromise]) as any;
+
+    // Extract text from REST API response
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.warn('No text in Gemini response:', response);
+      return null;
+    }
 
     // Clean Markdown code blocks if present
-    text = text
+    const cleanText = text
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
@@ -664,7 +685,7 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
       notes?: string;
     }
 
-    const rawData = JSON.parse(text) as AIResponse;
+    const rawData = JSON.parse(cleanText) as AIResponse;
 
     // Construct final data
     const finalData: ExtractedExpenseData = {
