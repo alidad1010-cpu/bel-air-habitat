@@ -626,8 +626,8 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
     );
 
     const apiCall = async () => {
-      // Utiliser gemini-1.5-flash (plus stable que 2.0-flash-exp)
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+      // Utiliser gemini-pro-vision (le modèle qui supporte les images)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${API_KEY}`;
       
       const body = {
         contents: [{
