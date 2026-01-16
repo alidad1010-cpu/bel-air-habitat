@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
+import { validate, ClientSchema } from '../utils/validation';
+import ErrorHandler, { ErrorType } from '../services/errorService';
+import AddressAutocomplete from './AddressAutocomplete';
 import {
   Search,
   Plus,
@@ -11,6 +15,10 @@ import {
   Briefcase,
   Users,
   Handshake,
+  Filter,
+  ArrowUpDown,
+  TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Client, Project, ClientType } from '../types';
@@ -41,8 +49,13 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
   onBulkAddProjects,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  // OPTIMIZATION: Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [typeFilter, setTypeFilter] = useState<ClientType | 'ALL'>('ALL');
+  const [sortBy, setSortBy] = useState<'name' | 'projects' | 'revenue'>('name');
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   // Filter Tabs: 'ALL' | 'CLIENTS'
   const [newClient, setNewClient] = useState<Client>({
@@ -55,49 +68,127 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
     type: 'PARTICULIER',
   });
 
-  const filteredClients = clients
-    .filter((c) => {
-      const matchesSearch =
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.city?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      // ----------------------------------------------------------------------------------
-      // FILTERING LOGIC
-      // ----------------------------------------------------------------------------------
-
-      // 1. Search overrides everything (allows finding a partner even if hidden)
-      if (searchQuery.trim().length > 0) return true;
-
-      // 2. Identify Partners/Subcontractors
-      const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
-
-      // 3. User Requirement: Strictly separate Partners from Clients Page
-      // EXCEPTION: Always show "Coop", "Syndic", or "Cop" (Syndics often misclassified)
-      const nameLower = (c.name || '').toLowerCase();
-      const normalizedName = nameLower.replace(/[^a-z0-9]/g, '');
-      if (
-        nameLower.includes('coop') ||
-        nameLower.includes('syndic') ||
-        normalizedName.includes('coop') ||
-        /\bcop\b/.test(nameLower) ||
-        nameLower.includes('cop ')
-      ) {
-        return true;
+  // Calculate client statistics (projects count and revenue)
+  const clientStats = useMemo(() => {
+    const stats = new Map<string, { projectsCount: number; revenue: number }>();
+    projects.forEach((project) => {
+      if (project.client?.id) {
+        const existing = stats.get(project.client.id) || { projectsCount: 0, revenue: 0 };
+        stats.set(project.client.id, {
+          projectsCount: existing.projectsCount + 1,
+          revenue: existing.revenue + (project.budget || 0),
+        });
       }
+    });
+    return stats;
+  }, [projects]);
 
-      // Hide Partners/Subcontractors from this page (they belong in PartnersPage)
-      if (isPartner) return false;
+  // OPTIMIZATION: Memoize filtered and sorted clients
+  const filteredClients = useMemo(() => {
+    const lowerQuery = debouncedSearchQuery.toLowerCase().trim();
+    let filtered = clients
+      .filter((c) => {
+        const matchesSearch =
+          c.name.toLowerCase().includes(lowerQuery) ||
+          c.email?.toLowerCase().includes(lowerQuery) ||
+          c.phone?.toLowerCase().includes(lowerQuery) ||
+          c.city?.toLowerCase().includes(lowerQuery) ||
+          c.zipCode?.toLowerCase().includes(lowerQuery);
 
-      // 4. Default: Show everything else (BAILLEUR, SCI, PARTICULIER, ENTREPRISE, etc.)
-      return true;
-    })
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        if (!matchesSearch) return false;
 
-  const handleSubmit = (e: React.FormEvent) => {
+        // Type filter
+        if (typeFilter !== 'ALL' && c.type !== typeFilter) return false;
+
+        // ----------------------------------------------------------------------------------
+        // FILTERING LOGIC
+        // ----------------------------------------------------------------------------------
+
+        // 1. Search overrides everything (allows finding a partner even if hidden)
+        if (lowerQuery.length > 0) return true;
+
+        // 2. Identify Partners/Subcontractors
+        const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
+
+        // 3. User Requirement: Strictly separate Partners from Clients Page
+        // EXCEPTION: Always show "Coop", "Syndic", or "Cop" (Syndics often misclassified)
+        const nameLower = (c.name || '').toLowerCase();
+        const normalizedName = nameLower.replace(/[^a-z0-9]/g, '');
+        if (
+          nameLower.includes('coop') ||
+          nameLower.includes('syndic') ||
+          normalizedName.includes('coop') ||
+          /\bcop\b/.test(nameLower) ||
+          nameLower.includes('cop ')
+        ) {
+          return true;
+        }
+
+        // Hide Partners/Subcontractors from this page (they belong in PartnersPage)
+        if (isPartner) return false;
+
+        // 4. Default: Show everything else (BAILLEUR, SCI, PARTICULIER, ENTREPRISE, etc.)
+        return true;
+      });
+
+    // Sort clients
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'projects') {
+        const aStats = clientStats.get(a.id || '') || { projectsCount: 0, revenue: 0 };
+        const bStats = clientStats.get(b.id || '') || { projectsCount: 0, revenue: 0 };
+        return bStats.projectsCount - aStats.projectsCount;
+      } else if (sortBy === 'revenue') {
+        const aStats = clientStats.get(a.id || '') || { projectsCount: 0, revenue: 0 };
+        const bStats = clientStats.get(b.id || '') || { projectsCount: 0, revenue: 0 };
+        return bStats.revenue - aStats.revenue;
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [clients, debouncedSearchQuery, typeFilter, sortBy, clientStats]);
+
+  // Check for duplicate clients (by email or phone)
+  const checkDuplicates = useCallback((client: Client) => {
+    if (!client.email && !client.phone) return null;
+    
+    const duplicates = clients.filter((c) => {
+      if (c.id === client.id) return false; // Skip self
+      const emailMatch = client.email && c.email && client.email.toLowerCase() === c.email.toLowerCase();
+      const phoneMatch = client.phone && c.phone && client.phone.replace(/\s/g, '') === c.phone.replace(/\s/g, '');
+      return emailMatch || phoneMatch;
+    });
+
+    if (duplicates.length > 0) {
+      return `Attention: Un client similaire existe déjà (${duplicates[0].name})`;
+    }
+    return null;
+  }, [clients]);
+
+  // OPTIMIZATION: Memoize callback to avoid recreating on every render
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate with Zod
+    const validation = validate(ClientSchema, newClient);
+    if (!validation.success) {
+      ErrorHandler.handleAndShow(
+        { message: validation.errors.join('\n'), type: ErrorType.VALIDATION },
+        'ClientsPage - Add Client'
+      );
+      return;
+    }
+
+    // Check for duplicates
+    const duplicateWarning = checkDuplicates(newClient);
+    if (duplicateWarning) {
+      setDuplicateWarning(duplicateWarning);
+      // Still allow adding, but show warning
+      setTimeout(() => setDuplicateWarning(null), 5000);
+    }
+
     onAddClient(newClient);
     setIsModalOpen(false);
     setNewClient({
@@ -109,9 +200,21 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
       city: '',
       type: 'PARTICULIER',
     });
-  };
+    setDuplicateWarning(null);
+  }, [newClient, onAddClient, checkDuplicates]);
 
-  const getTypeLabel = (type?: ClientType) => {
+  // Handle address autocomplete selection
+  const handleAddressSelect = useCallback((result: { fullAddress: string; street: string; city: string; zipCode: string }) => {
+    setNewClient((prev) => ({
+      ...prev,
+      address: result.street || result.fullAddress,
+      city: result.city,
+      zipCode: result.zipCode,
+    }));
+  }, []);
+
+  // OPTIMIZATION: Memoize type label function
+  const getTypeLabel = useCallback((type?: ClientType) => {
     switch (type) {
       case 'PARTICULIER':
         return { label: 'Particulier', class: 'bg-emerald-100 text-emerald-700' };
@@ -135,7 +238,7 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
           class: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200',
         };
     }
-  };
+  }, []);
 
   const inputClass =
     'w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-400';
@@ -146,9 +249,9 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
     <div className="space-y-6 animate-fade-in relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
-          Base Clients
+          Base Clients ({filteredClients.length})
         </h2>
-        <div className="flex space-x-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 dark:text-slate-200 dark:text-white"
@@ -166,6 +269,33 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
               className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 dark:text-white"
             />
           </div>
+          
+          {/* Type Filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as ClientType | 'ALL')}
+            className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+          >
+            <option value="ALL">Tous les types</option>
+            <option value="PARTICULIER">Particuliers</option>
+            <option value="ENTREPRISE">Entreprises</option>
+            <option value="ARCHITECTE">Architectes</option>
+            <option value="SYNDIC">Syndics</option>
+            <option value="BAILLEUR">Bailleurs</option>
+            <option value="SCI">SCI</option>
+          </select>
+
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'name' | 'projects' | 'revenue')}
+            className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none flex items-center"
+          >
+            <option value="name">Tri: Nom</option>
+            <option value="projects">Tri: Projets</option>
+            <option value="revenue">Tri: CA</option>
+          </select>
+
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors text-sm whitespace-nowrap"
@@ -181,9 +311,10 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
         {filteredClients.length > 0 ? (
           filteredClients.map((client, index) => {
             const typeStyle = getTypeLabel(client.type);
+            const stats = clientStats.get(client.id || '') || { projectsCount: 0, revenue: 0 };
             return (
               <div
-                key={index}
+                key={client.id || index}
                 onClick={() => setSelectedClient(client)}
                 className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group relative cursor-pointer"
               >
@@ -194,7 +325,7 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
                     >
                       {client.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white leading-tight">
                         {client.name}
                       </h3>
@@ -206,6 +337,22 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Statistics */}
+                {stats.projectsCount > 0 && (
+                  <div className="mb-3 flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Briefcase size={12} />
+                      {stats.projectsCount} projet{stats.projectsCount > 1 ? 's' : ''}
+                    </span>
+                    {stats.revenue > 0 && (
+                      <span className="flex items-center gap-1">
+                        <TrendingUp size={12} />
+                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(stats.revenue)}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center text-slate-700 dark:text-slate-200 dark:text-white">
@@ -311,10 +458,11 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
               </div>
               <div>
                 <label className={labelClass}>Adresse</label>
-                <input
-                  type="text"
+                <AddressAutocomplete
                   value={newClient.address}
-                  onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
+                  onChange={(val) => setNewClient({ ...newClient, address: val })}
+                  onSelect={handleAddressSelect}
+                  placeholder="Saisir une adresse..."
                   className={inputClass}
                 />
               </div>
@@ -338,6 +486,14 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Duplicate Warning */}
+              {duplicateWarning && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+                  <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                  <span>{duplicateWarning}</span>
+                </div>
+              )}
 
               <div className="flex justify-end pt-4 space-x-3">
                 <button
@@ -398,4 +554,5 @@ const ClientsPage: React.FC<ClientsPageProps> = ({
   );
 };
 
-export default ClientsPage;
+// OPTIMIZATION: Memoize component to prevent unnecessary re-renders
+export default React.memo(ClientsPage);

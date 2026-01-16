@@ -30,6 +30,9 @@ import { Project, ProjectStatus, User, AppNotification } from '../types';
 import { SharedNote } from '../App';
 import NotificationDropdown from './NotificationDropdown';
 import { Bell } from 'lucide-react';
+import { DashboardCharts } from './DashboardCharts';
+import { CustomizableDashboard, useDashboardConfig, WidgetConfig } from './CustomizableDashboard';
+import { Settings2 } from 'lucide-react';
 
 interface DashboardProps {
   projects: Project[];
@@ -154,6 +157,9 @@ const StatCard: React.FC<StatCardProps> = ({
     </div>
   );
 };
+
+// OPTIMIZATION: Memoize StatCard to prevent unnecessary re-renders
+const MemoizedStatCard = React.memo(StatCard);
 
 const QuickMemo = ({
   notes = [],
@@ -554,6 +560,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   currentUser,
 }) => {
   const [viewMode, setViewMode] = useState<'LIST' | 'MAP'>('LIST');
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const { configs, saveConfig } = useDashboardConfig(currentUser?.id);
 
   const stats = useMemo(() => {
     return {
@@ -606,6 +614,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             {/* Button moved here to match screenshot */}
 
             <div className="flex bg-slate-900 border border-slate-700 p-1 rounded-xl items-center">
+              <button
+                onClick={() => setIsCustomizing(!isCustomizing)}
+                className={`px-3 py-2 rounded-lg text-slate-300 font-medium hover:bg-slate-800 transition-all flex items-center ${
+                  isCustomizing ? 'bg-emerald-700 text-white' : ''
+                }`}
+                title={isCustomizing ? 'Terminer la personnalisation' : 'Personnaliser le Dashboard'}
+              >
+                <Settings2 size={18} className="mr-1.5" />
+                {isCustomizing ? 'Terminer' : 'Personnaliser'}
+              </button>
+              <div className="w-px bg-slate-700 mx-1"></div>
               <button
                 onClick={() => onNavigate('tasks')}
                 className="px-4 py-2 rounded-lg text-slate-300 font-medium hover:bg-slate-800 transition-all flex items-center"
@@ -717,109 +736,127 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* 3. Workflow Steps */}
+      {/* Customizable Widgets */}
+      <CustomizableDashboard
+        widgets={[
+          // Widget 0: Workflow Incoming
+          <section key="workflow-incoming">
+            <div className="flex items-center mb-6 px-1">
+              <div className="w-1.5 h-8 bg-sky-500 rounded-full mr-3"></div>
+              <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white uppercase tracking-tight">
+                1. Flux Entrant
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <MemoizedStatCard
+                count={stats.available}
+                title="A Traiter"
+                variant="sky"
+                icon={CheckSquare}
+                onClick={() => onNavigate('projects', ProjectStatus.NEW)}
+              />
+              <MemoizedStatCard
+                count={stats.applied}
+                title="Devis Envoyés"
+                variant="amber"
+                icon={Send}
+                onClick={() => onNavigate('projects', ProjectStatus.QUOTE_SENT)}
+              />
+              <MemoizedStatCard
+                count={stats.declined}
+                title="Perdus / Sans suite"
+                variant="rose"
+                icon={XCircle}
+                onClick={() => onNavigate('projects', ProjectStatus.LOST)}
+              />
+            </div>
+          </section>,
 
-      {/* NEW / INCOMING */}
-      <section>
-        <div className="flex items-center mb-6 px-1">
-          <div className="w-1.5 h-8 bg-sky-500 rounded-full mr-3"></div>
-          <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white uppercase tracking-tight">
-            1. Flux Entrant
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            count={stats.available}
-            title="A Traiter"
-            variant="sky"
-            icon={CheckSquare}
-            onClick={() => onNavigate('projects', ProjectStatus.NEW)}
-          />
-          <StatCard
-            count={stats.applied}
-            title="Devis Envoyés"
-            variant="amber"
-            icon={Send}
-            onClick={() => onNavigate('projects', ProjectStatus.QUOTE_SENT)}
-          />
-          <StatCard
-            count={stats.declined}
-            title="Perdus / Sans suite"
-            variant="rose"
-            icon={XCircle}
-            onClick={() => onNavigate('projects', ProjectStatus.LOST)}
-          />
-        </div>
-      </section>
+          // Widget 1: Workflow Production
+          <section key="workflow-production">
+            <div className="flex items-center mb-6 px-1">
+              <div className="w-1.5 h-8 bg-emerald-500 rounded-full mr-3"></div>
+              <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white uppercase tracking-tight">
+                2. Production
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <MemoizedStatCard
+                count={stats.upcoming}
+                title="Validés (À Venir)"
+                variant="violet"
+                icon={Clock}
+                onClick={() => onNavigate('projects', ProjectStatus.VALIDATED)}
+              />
+              <MemoizedStatCard
+                count={stats.inProgress}
+                title="En Cours (Actifs)"
+                variant="emerald"
+                icon={Briefcase}
+                onClick={() => onNavigate('projects', ProjectStatus.IN_PROGRESS)}
+              />
+              <MemoizedStatCard
+                count={stats.late}
+                title="En Retard"
+                variant="rose"
+                icon={AlertCircle}
+                onClick={() => onNavigate('projects', 'ALL')}
+              />
+            </div>
+          </section>,
 
-      {/* ACTIVE / PRODUCTION */}
-      <section>
-        <div className="flex items-center mb-6 px-1">
-          <div className="w-1.5 h-8 bg-emerald-500 rounded-full mr-3"></div>
-          <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white uppercase tracking-tight">
-            2. Production
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            count={stats.upcoming}
-            title="Validés (À Venir)"
-            variant="violet"
-            icon={Clock}
-            onClick={() => onNavigate('projects', ProjectStatus.VALIDATED)}
-          />
-          <StatCard
-            count={stats.inProgress}
-            title="En Cours (Actifs)"
-            variant="emerald"
-            icon={Briefcase}
-            onClick={() => onNavigate('projects', ProjectStatus.IN_PROGRESS)}
-          />
-          <StatCard
-            count={stats.late}
-            title="En Retard"
-            variant="rose"
-            icon={AlertCircle}
-            onClick={() => onNavigate('projects', 'ALL')}
-          />
-        </div>
-      </section>
+          // Widget 2: Workflow Closing
+          <section key="workflow-closing">
+            <div className="flex items-center mb-6 px-1">
+              <div className="w-1.5 h-8 bg-slate-500 rounded-full mr-3"></div>
+              <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white uppercase tracking-tight">
+                3. Clôture
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <MemoizedStatCard
+                count={stats.validating}
+                title="Facturation"
+                variant="amber"
+                icon={DollarSign}
+                onClick={() => onNavigate('projects', ProjectStatus.WAITING_VALIDATION)}
+              />
+              <MemoizedStatCard
+                count={stats.finished}
+                title="Clôturés"
+                variant="slate"
+                icon={CheckCircle2}
+                onClick={() => onNavigate('projects', ProjectStatus.COMPLETED)}
+              />
+              <MemoizedStatCard
+                count={stats.refused}
+                title="Refusés / Litiges"
+                variant="rose"
+                icon={XCircle}
+                onClick={() => onNavigate('projects', ProjectStatus.REFUSED)}
+              />
+            </div>
+          </section>,
 
-      {/* CLOSING */}
-      <section>
-        <div className="flex items-center mb-6 px-1">
-          <div className="w-1.5 h-8 bg-slate-500 rounded-full mr-3"></div>
-          <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white uppercase tracking-tight">
-            3. Clôture
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            count={stats.validating}
-            title="Facturation"
-            variant="amber"
-            icon={DollarSign}
-            onClick={() => onNavigate('projects', ProjectStatus.WAITING_VALIDATION)}
-          />
-          <StatCard
-            count={stats.finished}
-            title="Clôturés"
-            variant="slate"
-            icon={CheckCircle2}
-            onClick={() => onNavigate('projects', ProjectStatus.COMPLETED)}
-          />
-          <StatCard
-            count={stats.refused}
-            title="Refusés / Litiges"
-            variant="rose"
-            icon={XCircle}
-            onClick={() => onNavigate('projects', ProjectStatus.REFUSED)}
-          />
-        </div>
-      </section>
+          // Widget 3: Charts
+          <section key="charts">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Analyses & Statistiques</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Visualisez vos performances et l'évolution de votre activité
+              </p>
+            </div>
+            <DashboardCharts projects={projects} />
+          </section>,
 
-      {/* Global Stats Footer */}
-      <GlobalStats projects={projects} />
+          // Widget 4: Global Stats
+          <GlobalStats key="global-stats" projects={projects} />,
+        ]}
+        widgetConfigs={configs}
+        onReorder={saveConfig}
+        isCustomizing={isCustomizing}
+        onToggleCustomize={() => setIsCustomizing(false)}
+      />
     </div>
   );
 };

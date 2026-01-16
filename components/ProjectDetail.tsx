@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import ErrorHandler from '../services/errorService';
 import {
   Zap,
   Plus,
@@ -896,7 +897,11 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         const path = `projects/${formData.id}/documents/${Date.now()}_${safeName}`;
         url = await uploadFileToCloud(path, fileToUpload);
       } catch (cloudError) {
-        console.warn('Cloud upload failed or timed out, falling back to base64', cloudError);
+        // OPTIMIZATION: Use ErrorHandler for consistent error management
+        if (import.meta.env.DEV) {
+          console.warn('Cloud upload failed or timed out, falling back to base64', cloudError);
+        }
+        ErrorHandler.handle(cloudError, 'ProjectDetail - File Upload');
 
         // 2. Fallback to Local Base64
         // Limit increased to 950KB (Firestore doc limit is 1MB, keeping buffer)
@@ -1620,7 +1625,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                               setFormData((prev) => ({ ...prev, lat: latitude, lng: longitude }));
                             }
                           })
-                          .catch((err) => console.error('Geocoding failed', err));
+                          .catch((err) => {
+                            // OPTIMIZATION: Use ErrorHandler for consistent error management
+                            if (import.meta.env.DEV) {
+                              console.error('Geocoding failed', err);
+                            }
+                            ErrorHandler.handle(err, 'ProjectDetail - Geocoding');
+                          });
                       }
                     }}
                     className={`${inputClass} pl-9 font-medium`}

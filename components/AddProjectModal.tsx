@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { validate, ProjectSchema } from '../utils/validation';
+import ErrorHandler, { ErrorType } from '../services/errorService';
 import {
   X,
   Mail,
@@ -237,6 +239,17 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       appointments: initialAppointments,
       needsCallback: false,
     };
+
+    // OPTIMIZATION: Validate with Zod before submitting
+    const validation = validate(ProjectSchema, newProject);
+    if (!validation.success) {
+      ErrorHandler.handleAndShow(
+        { message: validation.errors.join('\n'), type: ErrorType.VALIDATION },
+        'AddProjectModal'
+      );
+      return;
+    }
+
     onAdd(newProject);
     resetForm();
     onClose();

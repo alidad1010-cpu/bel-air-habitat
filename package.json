@@ -24,7 +24,10 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-window": "^1.8.10",
+    "recharts": "^3.6.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
@@ -34,6 +37,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/react-window": "^1.8.8",
     "@typescript-eslint/eslint-plugin": "^8.48.1",
     "@typescript-eslint/parser": "^8.48.1",
     "@vitejs/plugin-react": "^5.0.0",

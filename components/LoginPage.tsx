@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock, User as UserIcon, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import { signIn } from '../services/firebaseService';
+import ErrorHandler from '../services/errorService';
 
 interface LoginPageProps {
   onLogin: (u: string, p: string) => boolean;
@@ -27,24 +28,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
       await signIn(emailToUse, cleanPassword);
       // If signIn is successful, the App.tsx (or parent) should detect the auth change
       // and redirect, so no explicit onLogin call here.
-    } catch (firebaseError: any) {
-      console.error("Firebase Auth Failed", firebaseError);
-      let msg = "Identifiants incorrects ou compte inconnu.";
-      if (typeof firebaseError === 'object' && firebaseError !== null) {
-        const code = firebaseError.code;
-        // const message = firebaseError.message || ''; // Not used in this error handling
-
-        if (code === 'auth/network-request-failed') {
-          msg = "Erreur de connexion internet.";
-        } else if (code === 'auth/too-many-requests') {
-          msg = "Trop de tentatives. Veuillez patienter.";
-        }
-      } else if (typeof firebaseError === 'string' && firebaseError === "Auth not initialized") {
-        // This should not happen now with fallback, but safe to handle
-        msg = "Erreur de configuration (Auth not initialized).";
-      }
-      setError(msg);
-      setIsLoading(false); // Only stop loading on error
+      // Reset loading state on success (before redirect)
+      setIsLoading(false);
+    } catch (firebaseError: unknown) {
+      // OPTIMIZATION: Use ErrorHandler for consistent error management
+      const appError = ErrorHandler.handle(firebaseError, 'LoginPage');
+      const userMessage = ErrorHandler.getUserMessage(appError);
+      setError(userMessage);
+      setIsLoading(false);
     }
   };
 

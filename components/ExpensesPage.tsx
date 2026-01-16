@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import ErrorHandler from '../services/errorService';
 import {
     Receipt, Upload, Plus, DollarSign, TrendingUp, TrendingDown,
     FileText, Trash2, Edit2, X, PieChart, Printer
@@ -74,7 +75,11 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
             try {
                 processedFile = await processImageForAI(file);
             } catch (imageError) {
-                console.error("Image processing warning:", imageError);
+                // OPTIMIZATION: Use ErrorHandler for consistent error management
+                if (import.meta.env.DEV) {
+                    console.error("Image processing warning:", imageError);
+                }
+                ErrorHandler.handle(imageError, 'ExpensesPage - Image Processing');
                 // Continue with original file if processing fails
             }
 
@@ -84,7 +89,11 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                 const path = `expenses/general/${Date.now()}_${safeName}`;
                 url = await uploadFileToCloud(path, processedFile);
             } catch (uploadError) {
-                console.warn("Cloud Upload failed, falling back to local URL", uploadError);
+                // OPTIMIZATION: Use ErrorHandler for consistent error management
+                if (import.meta.env.DEV) {
+                    console.warn("Cloud Upload failed, falling back to local URL", uploadError);
+                }
+                ErrorHandler.handle(uploadError, 'ExpensesPage - Cloud Upload');
                 // Fallback to local URL for preview
                 url = URL.createObjectURL(processedFile);
                 alert("⚠️ Mode Hors-Ligne : Le justificatif est sauvegardé localement uniquement (Upload Cloud échoué).");
@@ -112,8 +121,8 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
             setEditingExpense(newExpense);
             setIsModalOpen(true);
         } catch (error) {
-            console.error("Critical error in expense flow", error);
-            alert("Une erreur critique est survenue.");
+            // OPTIMIZATION: Use ErrorHandler for consistent error management
+            ErrorHandler.handleAndShow(error, 'ExpensesPage - Critical Error');
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';

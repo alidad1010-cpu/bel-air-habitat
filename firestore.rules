@@ -15,68 +15,184 @@ service cloud.firestore {
       );
     }
 
+    // Helper: Vérifie si l'utilisateur est propriétaire du document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper: Vérifie si l'utilisateur est propriétaire ou admin
+    function isOwnerOrAdmin(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+
     // USERS COLLECTION
-    // Users can read their own profile. Admins can read all.
+    // Users can read their own profile or all if admin. Only owner can write their profile.
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
     }
 
     // PROJECTS COLLECTION
-    // Only authenticated users can read/write projects.
+    // Tous les utilisateurs authentifiés peuvent lire, mais seuls les propriétaires peuvent modifier
     match /projects/{projectId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in request.resource.data) // Autoriser création sans createdBy pour compatibilité
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) || // Document existant sans createdBy
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
     }
 
-    // CLIENTS, EMPLOYEES, PARTNERS
+    // CLIENTS COLLECTION
+    // Lecture pour tous les utilisateurs authentifiés, écriture limitée
     match /clients/{clientId} {
-      allow read, write: if isAuthenticated();
-    }
-    match /employees/{employeeId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
     }
 
-    // PARTNERS
+    // PARTNERS COLLECTION
     match /partners/{partnerId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
     }
 
-    // TEAM MESSAGES
-    match /team_messages/{messageId} {
-        allow read, write: if isAuthenticated();
+    // EMPLOYEES COLLECTION
+    // Lecture pour tous, modification/se suppression seulement pour admins
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated(); // Autoriser création pour compatibilité
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
     }
 
-    // EXPENSES
+    // EXPENSES COLLECTION
+    // Lecture pour tous, écriture seulement pour propriétaire
     match /expenses/{expenseId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in request.resource.data)
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
     }
 
-    // PROSPECTS
-    match /prospects/{prospectId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // ATTENDANCES
+    // ATTENDANCES COLLECTION
     match /attendances/{attendanceId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
     }
 
-    // NOTIFICATIONS
+    // PROSPECTS COLLECTION
+    match /prospects/{prospectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        !('createdBy' in resource.data) ||
+        isAdmin()
+      );
+    }
+
+    // TEAM MESSAGES COLLECTION
+    // Tous peuvent lire et créer, mais seulement l'auteur ou admin peut supprimer
+    match /team_messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.authorId == request.auth.uid ||
+        !('authorId' in request.resource.data)
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // NOTIFICATIONS COLLECTION
     match /notifications/{notificationId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated(); // Permettre mise à jour pour marquer comme lu
+      allow delete: if isAuthenticated();
     }
 
     // COMPANY DATA
     match /company/dashboard {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // Autoriser écriture pour compatibilité
     }
 
     match /company/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAdmin(); // Seulement admin pour données administratives
     }
 
-    // DEFAULT DENY
+    // DEFAULT DENY - Tout le reste est refusé
     match /{document=**} {
       allow read, write: if false;
     }

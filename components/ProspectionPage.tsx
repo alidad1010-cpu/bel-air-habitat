@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Plus, Search, MoreVertical, Phone, Mail, MapPin, DollarSign, Calendar, Mic, Sparkles, FileText, Upload, X, Trash2 } from 'lucide-react';
 import { Prospect, ProspectStatus, ProspectNote } from '../types';
@@ -24,6 +25,8 @@ const COLUMNS = [
 
 const ProspectionPage: React.FC<ProspectionPageProps> = ({ prospects, onAddProspect, onUpdateProspect, onDeleteProspect, onConvertToClient }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    // OPTIMIZATION: Debounce search query
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -53,12 +56,14 @@ const ProspectionPage: React.FC<ProspectionPageProps> = ({ prospects, onAddProsp
         setSelectedProspect(newLead);
     };
 
+    // OPTIMIZATION: Memoize filtered prospects with debounced search
     const filteredProspects = useMemo(() => {
+        const lowerQuery = debouncedSearchQuery.toLowerCase();
         return prospects.filter(p =>
-            p.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.companyName?.toLowerCase().includes(searchQuery.toLowerCase())
+            p.contactName.toLowerCase().includes(lowerQuery) ||
+            p.companyName?.toLowerCase().includes(lowerQuery)
         );
-    }, [prospects, searchQuery]);
+    }, [prospects, debouncedSearchQuery]);
 
     return (
         <div className="h-[calc(100vh-80px)] flex flex-col p-4 md:p-6 space-y-6 animate-fade-in">

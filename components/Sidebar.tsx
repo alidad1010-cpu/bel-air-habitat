@@ -35,20 +35,49 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   isOnline = true,
 }) => {
-  const displayMenu: { id: string; icon: React.ElementType; label: string }[] = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
-
-    { id: 'tasks', icon: CheckSquare, label: 'Mes Tâches' },
-    { id: 'agenda', icon: Calendar, label: 'Agenda' },
-    { id: 'projects', icon: Briefcase, label: 'Dossiers' },
-
-    { id: 'clients', icon: Users, label: 'Clients' },
-    { id: 'prospection', icon: Megaphone, label: 'Prospection' },
-    { id: 'partners', icon: Handshake, label: 'Partenaires' },
-    { id: 'employees', icon: HardHat, label: 'Salariés' },
-    { id: 'administrative', icon: Building2, label: 'Administratif' },
-    { id: 'expenses', icon: DollarSign, label: 'Dépenses' },
-    { id: 'settings', icon: Settings, label: 'Paramètres' },
+  // Menu items organized by groups for better UX
+  const menuGroups: {
+    id: string;
+    label: string;
+    items: { id: string; icon: React.ElementType; label: string }[];
+  }[] = [
+    {
+      id: 'work',
+      label: 'MON TRAVAIL',
+      items: [
+        { id: 'dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
+        { id: 'tasks', icon: CheckSquare, label: 'Mes Tâches' },
+        { id: 'agenda', icon: Calendar, label: 'Agenda' },
+      ],
+    },
+    {
+      id: 'projects',
+      label: 'PROJETS',
+      items: [{ id: 'projects', icon: Briefcase, label: 'Dossiers' }],
+    },
+    {
+      id: 'relations',
+      label: 'RELATIONS',
+      items: [
+        { id: 'clients', icon: Users, label: 'Clients' },
+        { id: 'prospection', icon: Megaphone, label: 'Prospection' },
+        { id: 'partners', icon: Handshake, label: 'Partenaires' },
+        { id: 'employees', icon: HardHat, label: 'Salariés' },
+      ],
+    },
+    {
+      id: 'financial',
+      label: 'FINANCIER',
+      items: [
+        { id: 'expenses', icon: DollarSign, label: 'Dépenses' },
+        { id: 'administrative', icon: Building2, label: 'Administratif' },
+      ],
+    },
+    {
+      id: 'system',
+      label: 'SYSTÈME',
+      items: [{ id: 'settings', icon: Settings, label: 'Paramètres' }],
+    },
   ];
 
   return (
@@ -93,31 +122,41 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
-          {displayMenu.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  if (onClose) onClose();
-                }}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                {/* Direct icon rendering */}
-                <item.icon
-                  size={20}
-                  className={`transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'}`}
-                />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            );
-          })}
+        <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto scrollbar-hide">
+          {menuGroups.map((group) => (
+            <div key={group.id} className="space-y-2">
+              {/* Group Label */}
+              <div className="px-4 py-1.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {group.label}
+                </span>
+              </div>
+              {/* Group Items */}
+              {group.items.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      if (onClose) onClose();
+                    }}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                      isActive
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <item.icon
+                      size={20}
+                      className={`transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'}`}
+                    />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="p-4 border-t border-slate-200 dark:border-white/10">

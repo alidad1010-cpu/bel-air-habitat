@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
-import { User, Plus, Trash2, Moon, Sun, Download, Database, Link, Zap, Check, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Plus, Trash2, Moon, Sun, Download, Database, Link, Zap, Check, ShieldAlert, Eye, EyeOff, RefreshCw, AlertCircle, Trash } from 'lucide-react';
 import { User as UserType, UserRole } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsPageProps {
     currentUser: UserType;
@@ -20,6 +21,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     onUpdateUser,
 
 }) => {
+    const { theme, toggleTheme } = useTheme();
     const [activeTab, setActiveTab] = useState('data');
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
@@ -131,6 +133,104 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
     const isAdmin = currentUser.role === 'ADMIN';
 
+    // Diagnostic & Cache Management State
+    const [serviceWorkerStatus, setServiceWorkerStatus] = useState<'unknown' | 'registered' | 'unregistered'>('unknown');
+    const [cacheStatus, setCacheStatus] = useState<{ size: string; count: number } | null>(null);
+    const [buildInfo, setBuildInfo] = useState<{ version: string; timestamp: string } | null>(null);
+
+    useEffect(() => {
+        // Check Service Worker status
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                setServiceWorkerStatus(registrations.length > 0 ? 'registered' : 'unregistered');
+            });
+        }
+
+        // Get build info from meta or env
+        const version = import.meta.env.VITE_APP_VERSION || 'dev';
+        const timestamp = new Date().toLocaleString('fr-FR');
+        setBuildInfo({ version, timestamp });
+    }, []);
+
+    const handleUnregisterServiceWorker = async () => {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+                setServiceWorkerStatus('unregistered');
+                alert('Service Worker désactivé avec succès. La page va se recharger.');
+                window.location.reload();
+            } catch (error) {
+                alert('Erreur lors de la désactivation du Service Worker.');
+                console.error('SW unregister error:', error);
+            }
+        }
+    };
+
+    const handleClearLocalStorage = () => {
+        if (window.confirm('Vider localStorage ? Toutes les données locales seront supprimées.')) {
+            localStorage.clear();
+            alert('localStorage vidé. La page va se recharger.');
+            window.location.reload();
+        }
+    };
+
+    const handleClearSessionStorage = () => {
+        if (window.confirm('Vider sessionStorage ? Vous devrez vous reconnecter.')) {
+            sessionStorage.clear();
+            alert('sessionStorage vidé. La page va se recharger.');
+            window.location.reload();
+        }
+    };
+
+    const handleClearAllCaches = async () => {
+        if (window.confirm('Vider tous les caches (Service Worker + localStorage + sessionStorage) ? Vous devrez vous reconnecter.')) {
+            // Clear Service Worker caches
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                } catch (error) {
+                    console.error('Cache clear error:', error);
+                }
+            }
+
+            // Unregister Service Worker
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                    }
+                } catch (error) {
+                    console.error('SW unregister error:', error);
+                }
+            }
+
+            // Clear storage
+            localStorage.clear();
+            sessionStorage.clear();
+
+            setServiceWorkerStatus('unregistered');
+            alert('Tous les caches ont été vidés. La page va se recharger.');
+            window.location.reload();
+        }
+    };
+
+    const handleHardReload = () => {
+        // Force reload bypassing cache
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => {
+                    registration.update();
+                });
+            });
+        }
+        window.location.reload(true);
+    };
+
     return (
         <div className="max-w-6xl mx-auto space-y-6 animate-fade-in p-2 md:p-0">
 
@@ -138,17 +238,29 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
                 <div className="p-6 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className="p-3 rounded-full bg-indigo-900 text-indigo-300">
-                            <Moon size={24} />
+                        <div className={`p-3 rounded-full ${theme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-amber-100 text-amber-700'}`}>
+                            {theme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
                         </div>
                         <div>
                             <h3 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white">Apparence</h3>
                             <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">
-                                Mode Sombre activé
+                                Mode {theme === 'dark' ? 'Sombre' : 'Clair'} activé
                             </p>
                         </div>
                     </div>
-                    {/* Toggle removed as per request */}
+                    <button
+                        onClick={toggleTheme}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            theme === 'dark' ? 'bg-indigo-600' : 'bg-amber-400'
+                        }`}
+                        aria-label="Basculer le thème"
+                    >
+                        <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                    </button>
                 </div>
             </div>
 
@@ -165,6 +277,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     >
                         <Database size={18} className="mr-2" />
                         Données
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('diagnostic')}
+                        className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'diagnostic' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                    >
+                        <RefreshCw size={18} className="mr-2" />
+                        Diagnostic
                     </button>
                     {isAdmin && (
                         <>
@@ -208,6 +327,124 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                 >
                                     <Download size={18} className="mr-2" /> Exporter les données (JSON)
                                 </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'diagnostic' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center space-x-4 mb-4">
+                                <div className="p-3 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                    <RefreshCw size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white">Diagnostic & Cache</h3>
+                                    <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">
+                                        Gérez les caches et diagnostiquez les problèmes de chargement.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Build Info */}
+                            {buildInfo && (
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white mb-2">Informations de Version</h4>
+                                    <div className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                                        <p><span className="font-medium">Version:</span> {buildInfo.version}</p>
+                                        <p><span className="font-medium">Dernière mise à jour:</span> {buildInfo.timestamp}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Service Worker Status */}
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                                <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white mb-3 flex items-center">
+                                    <AlertCircle size={18} className="mr-2" />
+                                    Service Worker (PWA)
+                                </h4>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-slate-700 dark:text-slate-300">
+                                            Statut: <span className="font-medium">{serviceWorkerStatus === 'registered' ? '✅ Actif' : serviceWorkerStatus === 'unregistered' ? '❌ Désactivé' : '⏳ Vérification...'}</span>
+                                        </span>
+                                    </div>
+                                    {serviceWorkerStatus === 'registered' && (
+                                        <button
+                                            onClick={handleUnregisterServiceWorker}
+                                            className="flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                        >
+                                            <Trash size={16} className="mr-2" />
+                                            Désactiver le Service Worker
+                                        </button>
+                                    )}
+                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                        Le Service Worker peut garder l'ancienne version en cache. Désactivez-le si les changements ne s'affichent pas.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Cache Management */}
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                                <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white mb-3">Gestion des Caches</h4>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={handleClearLocalStorage}
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-800 transition-colors"
+                                    >
+                                        <div className="flex items-center">
+                                            <Trash size={16} className="mr-2" />
+                                            <span className="font-medium">Vider localStorage</span>
+                                        </div>
+                                        <span className="text-xs">Supprime les données locales</span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleClearSessionStorage}
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg border border-orange-200 dark:border-orange-800 transition-colors"
+                                    >
+                                        <div className="flex items-center">
+                                            <Trash size={16} className="mr-2" />
+                                            <span className="font-medium">Vider sessionStorage</span>
+                                        </div>
+                                        <span className="text-xs">Déconnecte la session</span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleClearAllCaches}
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        <div className="flex items-center">
+                                            <RefreshCw size={16} className="mr-2" />
+                                            <span>Vider TOUS les caches</span>
+                                        </div>
+                                        <span className="text-xs">Complet (reconnexion requise)</span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleHardReload}
+                                        className="w-full flex items-center justify-center px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        <RefreshCw size={16} className="mr-2" />
+                                        Recharger en ignorant le cache
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Instructions */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+                                    <AlertCircle size={18} className="mr-2" />
+                                    Instructions pour Safari Mac
+                                </h4>
+                                <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800 dark:text-blue-200">
+                                    <li>Ouvrez les DevTools (Cmd + Option + I)</li>
+                                    <li>Allez dans l'onglet <strong>"Application"</strong> ou <strong>"Storage"</strong></li>
+                                    <li>Dans le menu de gauche, cliquez sur <strong>"Service Workers"</strong></li>
+                                    <li>Cliquez sur <strong>"Unregister"</strong> pour désactiver le Service Worker</li>
+                                    <li>Allez dans <strong>"Clear storage"</strong> et cochez tout</li>
+                                    <li>Cliquez sur <strong>"Clear site data"</strong></li>
+                                    <li>Actualisez la page (Cmd + R)</li>
+                                </ol>
                             </div>
                         </div>
                     )}

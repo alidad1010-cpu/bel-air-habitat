@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Search,
   Plus,
@@ -75,6 +76,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   const [viewMode, setViewMode] = useState<'LIST' | 'FOREIGNERS'>('LIST');
   const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCS' | 'EXPENSES'>('DETAILS');
   const [searchQuery, setSearchQuery] = useState('');
+  // OPTIMIZATION: Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -136,17 +139,21 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   const [expenseFormData, setExpenseFormData] = useState<Expense>(emptyExpense);
 
   // --- EMPLOYEES LOGIC ---
-  const filteredEmployees = employees.filter((e) => {
-    const matchesSearch =
-      e.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.position.toLowerCase().includes(searchQuery.toLowerCase());
+  // OPTIMIZATION: Memoize filtered employees with debounced search
+  const filteredEmployees = useMemo(() => {
+    const lowerQuery = debouncedSearchQuery.toLowerCase();
+    return employees.filter((e) => {
+      const matchesSearch =
+        e.lastName.toLowerCase().includes(lowerQuery) ||
+        e.firstName.toLowerCase().includes(lowerQuery) ||
+        e.position.toLowerCase().includes(lowerQuery);
 
-    if (viewMode === 'FOREIGNERS') {
-      return matchesSearch && e.isForeigner;
-    }
-    return matchesSearch;
-  });
+      if (viewMode === 'FOREIGNERS') {
+        return matchesSearch && e.isForeigner;
+      }
+      return matchesSearch;
+    });
+  }, [employees, debouncedSearchQuery, viewMode]);
 
   // Filtered Expenses for the Selected Employee
   const employeeExpenses = useMemo(() => {

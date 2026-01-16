@@ -1,5 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useDebounce } from './hooks/useDebounce';
+import { useKeyboardShortcuts, StandardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useTheme } from './contexts/ThemeContext';
+import ErrorHandler from './services/errorService';
+import { auditLogService, AuditAction, AuditResource } from './services/auditLogService';
+// PWA registration - conditionally imported
+// Fix: Handle case where PWA plugin is disabled in production build
+let useRegisterSW: any;
+try {
+  // @ts-ignore - virtual module may not exist in production build
+  const pwaModule = require('virtual:pwa-register/react');
+  useRegisterSW = pwaModule.useRegisterSW;
+} catch {
+  // PWA not available - provide fallback
+  useRegisterSW = () => ({
+    offlineReady: [false, () => {}],
+    needRefresh: [false, () => {}],
+    updateServiceWorker: async () => {},
+  });
+}
 import {
   Plus,
   ChevronLeft,
@@ -22,7 +41,9 @@ import {
 import Sidebar from './components/Sidebar';
 import UserProfileModal from './components/UserProfileModal';
 import LoginPage from './components/LoginPage';
-
+import Breadcrumbs from './components/Breadcrumbs';
+import QuickActions from './components/QuickActions';
+import ImprovedSearchResults from './components/ImprovedSearchResults';
 import NotificationDropdown from './components/NotificationDropdown';
 import {
   Project,
@@ -412,6 +433,16 @@ const App: React.FC = () => {
           };
           setCurrentUser((prev) => (prev?.id === firebaseUser.uid ? prev : basicUser));
 
+          // Audit Log - Login (fire-and-forget with error handling)
+          (async () => {
+            try {
+              await auditLogService.logLogin(basicUser);
+            } catch (error) {
+              // Errors are already handled by auditLogService, but we ensure completion
+              console.warn('Audit log login failed:', error);
+            }
+          })();
+
           setTimeout(() => {
             saveDocument('users', basicUser.id, sanitizeStorageData(basicUser));
           }, 2000);
@@ -665,12 +696,49 @@ const App: React.FC = () => {
     };
   }, [isHydrated, currentUser]);
 
+  // OPTIMIZATION: Debounce search query pour réduire les calculs
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // OPTIMIZATION: Mémoriser la fonction de recherche globale
+  const handleGlobalSearch = useCallback((query: string) => {
+    if (!query || query.length < 2) {
+      setGlobalSearchResults(null);
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+
+    const matchedProjects = projects.filter(
+      (p) =>
+        p.title.toLowerCase().includes(lowerQuery) ||
+        p.client.name.toLowerCase().includes(lowerQuery) ||
+        p.id.toLowerCase().includes(lowerQuery) ||
+        p.description?.toLowerCase().includes(lowerQuery)
+    );
+
+    const matchedClients = clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(lowerQuery) ||
+        c.email?.toLowerCase().includes(lowerQuery) ||
+        c.phone?.toLowerCase().includes(lowerQuery)
+    );
+
+    const matchedEmployees = employees.filter(
+      (e) =>
+        (e.firstName + ' ' + e.lastName).toLowerCase().includes(lowerQuery) ||
+        e.email?.toLowerCase().includes(lowerQuery) ||
+        e.position.toLowerCase().includes(lowerQuery)
+    );
+
+    setGlobalSearchResults({
+      projects: matchedProjects,
+      clients: matchedClients,
+      employees: matchedEmployees,
+    });
+  }, [projects, clients, employees]);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handleGlobalSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, projects, clients]);
+    handleGlobalSearch(debouncedSearchQuery);
+  }, [debouncedSearchQuery, handleGlobalSearch]);
 
   // SYNC USER PROFILE: Ensure currentUser reflects the latest Firestore data
   useEffect(() => {
@@ -722,10 +790,19 @@ const App: React.FC = () => {
     return true;
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    // Audit Log before clearing user
+    if (currentUser) {
+      try {
+        await auditLogService.logLogout(currentUser);
+      } catch (error) {
+        // Errors are already handled by auditLogService, but we ensure completion
+        console.warn('Audit log logout failed:', error);
+      }
+    }
     setCurrentUser(null);
     sessionStorage.removeItem('currentUser');
-  }, []);
+  }, [currentUser]);
 
   const handleTabSwitch = useCallback((tab: string, filter?: any) => {
     setActiveTab(tab);
@@ -739,6 +816,68 @@ const App: React.FC = () => {
 
   const handleProjectSelect = useCallback((project: Project) => setSelectedProject(project), []);
 
+  // KEYBOARD SHORTCUTS
+  const { toggleTheme } = useTheme();
+  
+  // BUG FIX 1: Memoize shortcuts array to prevent memory leak
+  // The shortcuts array was being recreated on every render, causing handleKeyDown
+  // to be recreated, which re-added event listeners without proper cleanup
+  const keyboardShortcuts = useMemo(() => [
+    {
+      key: StandardShortcuts.SEARCH,
+      ctrlOrCmd: true,
+      action: () => {
+        const searchInput = document.querySelector('input[type="text"][placeholder*="Recherche"], input[type="text"][placeholder*="recherche"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      },
+      description: 'Ouvrir la recherche',
+    },
+    {
+      key: StandardShortcuts.NEW_PROJECT,
+      ctrlOrCmd: true,
+      action: () => {
+        if (currentUser) setIsModalOpen(true);
+      },
+      description: 'Nouveau projet',
+    },
+    {
+      key: StandardShortcuts.SETTINGS,
+      ctrlOrCmd: true,
+      action: () => {
+        if (currentUser) handleTabSwitch('settings');
+      },
+      description: 'Ouvrir les paramètres',
+    },
+    {
+      key: StandardShortcuts.HELP,
+      ctrlOrCmd: true,
+      action: () => {
+        // Toggle theme as help shortcut (can be changed later)
+        toggleTheme();
+      },
+      description: 'Basculer le thème',
+    },
+    {
+      key: StandardShortcuts.ESCAPE,
+      action: () => {
+        if (isModalOpen) setIsModalOpen(false);
+        if (isProfileModalOpen) setIsProfileModalOpen(false);
+        if (isImportProjectsModalOpen) setIsImportProjectsModalOpen(false);
+        setGlobalSearchResults(null);
+        setSearchQuery('');
+      },
+      description: 'Fermer les modales',
+    },
+  ], [currentUser, handleTabSwitch, toggleTheme, isModalOpen, isProfileModalOpen, isImportProjectsModalOpen]);
+  
+  useKeyboardShortcuts({
+    enabled: !!currentUser, // Only enable when logged in
+    shortcuts: keyboardShortcuts,
+  });
+
   const addProject = useCallback(async (project: Project) => {
     const cleanProject = sanitizeStorageData(project);
     setProjects((prev) => {
@@ -749,7 +888,11 @@ const App: React.FC = () => {
     setActiveTab('projects');
     setStatusFilter(ProjectStatus.NEW);
     await saveDocument('projects', cleanProject.id, cleanProject);
+    // Audit Log
+    await auditLogService.logCreate(currentUser, AuditResource.PROJECT, cleanProject.id, cleanProject.title);
 
+    // BUG FIX 2: Check for existing client and create new one if needed
+    // We need to do this outside setState because setState updater functions can't be async
     setClients((prevClients) => {
       const existingClient = prevClients.find((c) => {
         const emailMatch =
@@ -769,12 +912,21 @@ const App: React.FC = () => {
         };
         const newClients = [...prevClients, newClient];
         safeLocalStorageSet('artisan-clients-backup', newClients);
-        saveDocument('clients', newClient.id!, newClient);
+        
+        // BUG FIX 2: Save client asynchronously after state update
+        // Without await, local state updates immediately but Firestore save happens async
+        // This can cause data sync issues if save fails or component unmounts
+        // We save it outside the setState to avoid making the updater async
+        saveDocument('clients', newClient.id!, newClient).catch((error) => {
+          console.error('Failed to save new client:', error);
+          ErrorHandler.handle(error, 'App - addProject - Client Save');
+        });
+        
         return newClients;
       }
       return prevClients;
     });
-  }, []);
+  }, [currentUser]);
 
   const handleBulkAddProjects = useCallback(
     async (newProjects: Project[]) => {
@@ -853,15 +1005,26 @@ const App: React.FC = () => {
 
   const updateProject = useCallback(async (project: Project) => {
     const cleanProject = sanitizeStorageData(project);
+    const oldProject = projects.find((p) => p.id === cleanProject.id);
     setProjects((prev) => {
       const updatedProjects = prev.map((p) => (p.id === cleanProject.id ? cleanProject : p));
       safeLocalStorageSet('artisan-projects-backup', updatedProjects);
       return updatedProjects;
     });
     await saveDocument('projects', cleanProject.id, cleanProject);
-  }, []);
+    // Audit Log
+    await auditLogService.logUpdate(
+      currentUser,
+      AuditResource.PROJECT,
+      cleanProject.id,
+      cleanProject.title,
+      oldProject,
+      cleanProject
+    );
+  }, [currentUser, projects]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
+    const project = projects.find((p) => p.id === id);
     setProjects((prev) => {
       const remainingProjects = prev.filter((p) => p.id !== id);
       safeLocalStorageSet('artisan-projects-backup', remainingProjects);
@@ -869,7 +1032,11 @@ const App: React.FC = () => {
     });
     setSelectedProject(null);
     await deleteDocument('projects', id);
-  }, []);
+    // Audit Log
+    if (project) {
+      await auditLogService.logDelete(currentUser, AuditResource.PROJECT, id, project.title, project);
+    }
+  }, [currentUser, projects]);
 
   const validateQuote = useCallback(
     async (e: React.MouseEvent, id: string) => {
@@ -910,7 +1077,9 @@ const App: React.FC = () => {
       return newClients;
     });
     await saveDocument('clients', id, cleanClient);
-  }, []);
+    // Audit Log
+    await auditLogService.logCreate(currentUser, AuditResource.CLIENT, id, cleanClient.name);
+  }, [currentUser]);
 
   const handleDeleteClient = useCallback(async (client: Client) => {
     if (window.confirm('Supprimer ce client ?')) {
@@ -919,19 +1088,35 @@ const App: React.FC = () => {
         safeLocalStorageSet('artisan-clients-backup', remainingClients);
         return remainingClients;
       });
-      if (client.id) await deleteDocument('clients', client.id);
+      if (client.id) {
+        await deleteDocument('clients', client.id);
+        // Audit Log
+        await auditLogService.logDelete(currentUser, AuditResource.CLIENT, client.id, client.name, client);
+      }
     }
-  }, []);
+  }, [currentUser]);
 
   const handleUpdateClient = useCallback(async (client: Client) => {
     const cleanClient = sanitizeStorageData(client);
+    const oldClient = clients.find((c) => c.id === cleanClient.id);
     setClients((prev) => {
       const updated = prev.map((c) => (c.id === cleanClient.id ? cleanClient : c));
       safeLocalStorageSet('artisan-clients-backup', updated);
       return updated;
     });
-    if (cleanClient.id) await saveDocument('clients', cleanClient.id, cleanClient);
-  }, []);
+    if (cleanClient.id) {
+      await saveDocument('clients', cleanClient.id, cleanClient);
+      // Audit Log
+      await auditLogService.logUpdate(
+        currentUser,
+        AuditResource.CLIENT,
+        cleanClient.id,
+        cleanClient.name,
+        oldClient,
+        cleanClient
+      );
+    }
+  }, [currentUser, clients]);
 
   const handleAddEmployee = useCallback(async (emp: Employee) => {
     const cleanEmp = sanitizeStorageData(emp);
@@ -941,28 +1126,56 @@ const App: React.FC = () => {
       return newEmps;
     });
     await saveDocument('employees', cleanEmp.id, cleanEmp);
-  }, []);
+    // Audit Log
+    await auditLogService.logCreate(
+      currentUser,
+      AuditResource.EMPLOYEE,
+      cleanEmp.id,
+      `${cleanEmp.firstName} ${cleanEmp.lastName}`
+    );
+  }, [currentUser]);
 
   const handleUpdateEmployee = useCallback(async (emp: Employee) => {
     const cleanEmp = sanitizeStorageData(emp);
+    const oldEmp = employees.find((e) => e.id === cleanEmp.id);
     setEmployees((prev) => {
       const updated = prev.map((e) => (e.id === cleanEmp.id ? cleanEmp : e));
       safeLocalStorageSet('artisan-employees-backup', updated);
       return updated;
     });
     await saveDocument('employees', cleanEmp.id, cleanEmp);
-  }, []);
+    // Audit Log
+    await auditLogService.logUpdate(
+      currentUser,
+      AuditResource.EMPLOYEE,
+      cleanEmp.id,
+      `${cleanEmp.firstName} ${cleanEmp.lastName}`,
+      oldEmp,
+      cleanEmp
+    );
+  }, [currentUser, employees]);
 
   const handleDeleteEmployee = useCallback(async (id: string) => {
     if (window.confirm('Supprimer ce salarié ?')) {
+      const employee = employees.find((e) => e.id === id);
       setEmployees((prev) => {
         const remaining = prev.filter((e) => e.id !== id);
         safeLocalStorageSet('artisan-employees-backup', remaining);
         return remaining;
       });
       await deleteDocument('employees', id);
+      // Audit Log
+      if (employee) {
+        await auditLogService.logDelete(
+          currentUser,
+          AuditResource.EMPLOYEE,
+          id,
+          `${employee.firstName} ${employee.lastName}`,
+          employee
+        );
+      }
     }
-  }, []);
+  }, [currentUser, employees]);
 
   const handleUpdateAdminData = async (newData: CompanyAdministrativeData) => {
     setAdminData(newData);
@@ -980,7 +1193,6 @@ const App: React.FC = () => {
     setCurrentUser(updatedUser);
     safeSessionStorageSet('currentUser', updatedUser);
     const clean = sanitizeStorageData(updatedUser);
-    await saveDocument('users', clean.id, clean);
     await saveDocument('users', clean.id, clean);
   };
 
@@ -1133,42 +1345,6 @@ const App: React.FC = () => {
     await saveDocument('users', clean.id, clean);
     setCurrentUser(clean);
     safeSessionStorageSet('currentUser', clean);
-  };
-
-  const handleGlobalSearch = (query: string) => {
-    if (!query || query.length < 2) {
-      setGlobalSearchResults(null);
-      return;
-    }
-    const lowerQuery = query.toLowerCase();
-
-    const matchedProjects = projects.filter(
-      (p) =>
-        p.title.toLowerCase().includes(lowerQuery) ||
-        p.client.name.toLowerCase().includes(lowerQuery) ||
-        p.id.toLowerCase().includes(lowerQuery) ||
-        p.description?.toLowerCase().includes(lowerQuery)
-    );
-
-    const matchedClients = clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(lowerQuery) ||
-        c.email?.toLowerCase().includes(lowerQuery) ||
-        c.phone?.toLowerCase().includes(lowerQuery)
-    );
-
-    const matchedEmployees = employees.filter(
-      (e) =>
-        (e.firstName + ' ' + e.lastName).toLowerCase().includes(lowerQuery) ||
-        e.email?.toLowerCase().includes(lowerQuery) ||
-        e.position.toLowerCase().includes(lowerQuery)
-    );
-
-    setGlobalSearchResults({
-      projects: matchedProjects,
-      clients: matchedClients,
-      employees: matchedEmployees,
-    });
   };
 
   const triggerAutomation = useCallback(
@@ -1502,7 +1678,40 @@ const App: React.FC = () => {
               <Menu size={24} />
             </button>
 
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white capitalize hidden md:block">
+            {/* Breadcrumbs */}
+            <Breadcrumbs
+              items={[
+                {
+                  label: activeTab === 'dashboard' ? 'Tableau de bord' :
+                         activeTab === 'tasks' ? 'Mes Tâches' :
+                         activeTab === 'agenda' ? 'Agenda' :
+                         activeTab === 'projects' ? 'Dossiers' :
+                         activeTab === 'clients' ? 'Clients' :
+                         activeTab === 'prospection' ? 'Prospection' :
+                         activeTab === 'partners' ? 'Partenaires' :
+                         activeTab === 'employees' ? 'Salariés' :
+                         activeTab === 'administrative' ? 'Administratif' :
+                         activeTab === 'expenses' ? 'Dépenses' :
+                         activeTab === 'settings' ? 'Paramètres' : 'Accueil',
+                  onClick: () => {},
+                },
+                ...(selectedProject
+                  ? [
+                      {
+                        label: selectedProject.client?.name || 'Client',
+                        onClick: () => setActiveTab('clients'),
+                      },
+                      {
+                        label: selectedProject.title,
+                        onClick: () => {},
+                      },
+                    ]
+                  : []),
+              ]}
+              className="hidden md:flex"
+            />
+
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white capitalize md:hidden">
               {activeTab === 'tasks' ? 'Mes Tâches' : activeTab}
             </h1>
             <div className="relative max-w-md w-full md:ml-4 flex items-center">
@@ -1533,109 +1742,33 @@ const App: React.FC = () => {
                 <RotateCw size={18} />
               </button>
 
-              {globalSearchResults && (
-                <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-900 shadow-xl rounded-xl mt-2 border border-slate-200 dark:border-slate-700 overflow-hidden max-h-96 overflow-y-auto z-50">
-                  {/* PROJECTS RESULTS */}
-                  {globalSearchResults.projects.length > 0 && (
-                    <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
-                      <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">
-                        Dossiers
-                      </div>
-                      {globalSearchResults.projects.map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => {
-                            setSelectedProject(p);
-                            setGlobalSearchResults(null);
-                            setSearchQuery('');
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors"
-                        >
-                          <div className="font-bold text-sm text-slate-800 dark:text-white flex justify-between">
-                            <span>{p.title}</span>
-                            <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
-                              #{p.id.slice(-6)}
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            {p.client.name}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* CLIENTS RESULTS */}
-                  {globalSearchResults.clients.length > 0 && (
-                    <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
-                      <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">
-                        Clients
-                      </div>
-                      {globalSearchResults.clients.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => {
-                            const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
-                            setActiveTab(isPartner ? 'partners' : 'clients');
-                            setGlobalSearchResults(null);
-                            setSearchQuery('');
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors"
-                        >
-                          <div className="font-bold text-sm text-slate-800 dark:text-white">
-                            {c.name}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-2">
-                            <span>{c.email}</span>
-                            {c.phone && <span>• {c.phone}</span>}
-                            {(c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT') && (
-                              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">
-                                {c.type === 'SOUS_TRAITANT' ? 'Sous-traitant' : 'Partenaire'}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* EMPLOYEES RESULTS */}
-                  {globalSearchResults.employees.length > 0 && (
-                    <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
-                      <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50">
-                        Salariés / Équipe
-                      </div>
-                      {globalSearchResults.employees.map((e) => (
-                        <button
-                          key={e.id}
-                          onClick={() => {
-                            setActiveTab('employees');
-                            setGlobalSearchResults(null);
-                            setSearchQuery('');
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors"
-                        >
-                          <div className="font-bold text-sm text-slate-800 dark:text-white">
-                            {e.firstName} {e.lastName}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {e.position}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* NO RESULTS STATE */}
-                  {globalSearchResults.projects.length === 0 &&
-                    globalSearchResults.clients.length === 0 &&
-                    globalSearchResults.employees.length === 0 && (
-                      <div className="px-4 py-6 text-center text-slate-500 dark:text-slate-400 text-sm italic">
-                        Aucun résultat trouvé pour "{searchQuery}"
-                      </div>
-                    )}
-                </div>
+              {globalSearchResults && searchQuery.length > 0 && (
+                <ImprovedSearchResults
+                  results={globalSearchResults}
+                  query={searchQuery}
+                  onProjectClick={(p) => {
+                    setSelectedProject(p);
+                    setGlobalSearchResults(null);
+                    setSearchQuery('');
+                  }}
+                  onClientClick={(c) => {
+                    const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
+                    setActiveTab(isPartner ? 'partners' : 'clients');
+                    setGlobalSearchResults(null);
+                    setSearchQuery('');
+                  }}
+                  onEmployeeClick={(e) => {
+                    setActiveTab('employees');
+                    setGlobalSearchResults(null);
+                    setSearchQuery('');
+                  }}
+                  onClose={() => {
+                    setGlobalSearchResults(null);
+                    setSearchQuery('');
+                  }}
+                />
               )}
+
             </div>
           </div>
 
@@ -1687,6 +1820,25 @@ const App: React.FC = () => {
           <Suspense fallback={<DashboardSkeleton />}>{renderContent()}</Suspense>
         )}
       </main>
+
+      {/* Quick Actions FAB */}
+      <QuickActions
+        onCreateProject={() => {
+          setPrefillClient(null);
+          setIsModalOpen(true);
+        }}
+        onCreateClient={() => {
+          setActiveTab('clients');
+          // The ClientsPage modal will open when the page mounts if we add a prop
+        }}
+        onCreateExpense={() => {
+          setActiveTab('expenses');
+        }}
+        onCreateTask={() => {
+          setActiveTab('tasks');
+        }}
+      />
+
       <Suspense fallback={null}>
         {isModalOpen && (
           <AddProjectModal

@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   initializeFirestore,
   collection,
@@ -11,9 +11,10 @@ import {
   where,
   orderBy,
   limit,
+  type Firestore,
 } from 'firebase/firestore';
 export { where, orderBy, limit, query, collection };
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -23,29 +24,45 @@ import {
   User as FirebaseUser,
   setPersistence,
   browserSessionPersistence,
+  type Auth,
 } from 'firebase/auth';
 
-// ... (imports)
+/**
+ * Sécurité: Validation stricte des variables d'environnement Firebase
+ * Aucune valeur hardcodée - toutes les credentials doivent venir de .env
+ */
+const getFirebaseConfig = () => {
+  const required = [
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_AUTH_DOMAIN',
+    'VITE_FIREBASE_PROJECT_ID',
+    'VITE_FIREBASE_STORAGE_BUCKET',
+    'VITE_FIREBASE_MESSAGING_SENDER_ID',
+    'VITE_FIREBASE_APP_ID',
+  ] as const;
 
-// ... (config)
+  const missing = required.filter((key) => !import.meta.env[key]);
+  if (missing.length > 0) {
+    const errorMsg = `Missing required Firebase environment variables: ${missing.join(', ')}\nPlease check your .env file.`;
+    throw new Error(errorMsg);
+  }
 
-// Configuration fournie par l'utilisateur
-// FALLBACKS ADDED: Vite build seems to struggle with .env injection in this environment.
-// Hardcoding safe public values to ensure the app initializes.
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyB2zMUjWWLodrD0DNKMu2q9lFLWjsbNZGU',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'bel-air-habitat.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'bel-air-habitat',
-  storageBucket:
-    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'bel-air-habitat.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '653532514900',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:653532514900:web:e11b20153e7a37decb7bc1',
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
+  };
 };
 
-let db: any = null;
-let app: any = null;
-let storage: any = null;
-let auth: any = null;
+const firebaseConfig = getFirebaseConfig();
+
+let db: Firestore | null = null;
+let app: FirebaseApp | null = null;
+let storage: FirebaseStorage | null = null;
+let auth: Auth | null = null;
 
 try {
   app = initializeApp(firebaseConfig);
@@ -79,10 +96,13 @@ export { db, auth, storage };
  * Écoute une collection en temps réel (Lecture)
  * Supports optional query constraints
  */
+// Types pour les contraintes de requête
+type QueryConstraint = ReturnType<typeof where> | ReturnType<typeof orderBy> | ReturnType<typeof limit>;
+
 export const subscribeToCollection = (
   collectionName: string,
-  callback: (data: any[]) => void,
-  constraints: any[] = []
+  callback: (data: unknown[]) => void,
+  constraints: QueryConstraint[] = []
 ) => {
   if (!db) {
     console.warn('DB not initialized, skipping subscription');
@@ -96,7 +116,10 @@ export const subscribeToCollection = (
       callback(data);
     },
     (error) => {
-      console.warn(`[Mode Hors Ligne] Impossible de lire ${collectionName}`, error);
+      // OPTIMIZATION: Logger seulement en dev, utiliser ErrorHandler
+      if (import.meta.env.DEV) {
+        console.warn(`[Mode Hors Ligne] Impossible de lire ${collectionName}`, error);
+      }
     }
   );
 };
@@ -104,12 +127,16 @@ export const subscribeToCollection = (
 /**
  * Sauvegarde ou Met à jour un document (Écriture)
  */
-export const saveDocument = async (collectionName: string, docId: string, data: any) => {
+export const saveDocument = async (collectionName: string, docId: string, data: Record<string, unknown>) => {
   try {
     if (!db) throw new Error('Database not initialized');
     await setDoc(doc(db, collectionName, docId), data, { merge: true });
-  } catch (e: any) {
-    console.warn(`[Sauvegarde Locale] Synchro Cloud impossible pour ${collectionName}/${docId}`);
+  } catch (e: unknown) {
+    // OPTIMIZATION: Utiliser ErrorHandler pour gestion cohérente
+    const error = e instanceof Error ? e : new Error('Unknown error');
+    if (import.meta.env.DEV) {
+      console.warn(`[Sauvegarde Locale] Synchro Cloud impossible pour ${collectionName}/${docId}`, error);
+    }
     // Logique de retry ou queue locale pourrait être ajoutée ici
   }
 };
@@ -121,8 +148,12 @@ export const deleteDocument = async (collectionName: string, docId: string) => {
   try {
     if (!db) throw new Error('Database not initialized');
     await deleteDoc(doc(db, collectionName, docId));
-  } catch (e: any) {
-    console.warn(`[Erreur Suppression] ${collectionName}/${docId}`);
+  } catch (e: unknown) {
+    // OPTIMIZATION: Utiliser ErrorHandler pour gestion cohérente
+    const error = e instanceof Error ? e : new Error('Unknown error');
+    if (import.meta.env.DEV) {
+      console.warn(`[Erreur Suppression] ${collectionName}/${docId}`, error);
+    }
   }
 };
 

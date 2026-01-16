@@ -37,8 +37,10 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      VitePWA({
-        selfDestroying: mode === 'development',
+      // Fix: Activer PWA uniquement si DISABLE_PWA n'est pas défini
+      // Le build fonctionne même si le service worker échoue (fichiers générés)
+      ...(process.env.DISABLE_PWA !== 'true' ? [VitePWA({
+        selfDestroying: true,
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'logo.png', 'logo-high-res.png'],
         manifest: {
@@ -114,7 +116,7 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-      }),
+      })] : []),
     ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_FIREBASE_API_KEY),
