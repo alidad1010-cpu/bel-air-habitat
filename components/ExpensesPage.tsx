@@ -99,13 +99,23 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                 alert("⚠️ Mode Hors-Ligne : Le justificatif est sauvegardé localement uniquement (Upload Cloud échoué).");
             }
 
-            // 3. Analyze
-            const extractedData = await analyzeExpenseReceipt(processedFile);
-
-            if (!extractedData) {
-                alert("L'analyse IA a échoué ou aucune donnée n'a été trouvée. Veuillez vérifier votre connexion ou remplir manuellement.");
+            // 3. Analyze (Try AI, but don't block if it fails)
+            let extractedData = null;
+            
+            try {
+                console.log('🤖 Tentative d\'analyse IA...');
+                extractedData = await analyzeExpenseReceipt(processedFile);
+                if (extractedData) {
+                    console.log('✅ Analyse IA réussie !', extractedData);
+                } else {
+                    console.log('⚠️ Analyse IA retourné null - Saisie manuelle');
+                }
+            } catch (aiError) {
+                console.warn('⚠️ Scanner IA ignoré (erreur):', aiError);
+                // Continue sans bloquer l'utilisateur
             }
 
+            // Ouvrir modal TOUJOURS (avec ou sans données IA)
             const newExpense: Partial<Expense> = {
                 date: extractedData?.date || new Date().toISOString().split('T')[0],
                 merchant: extractedData?.merchant || '',

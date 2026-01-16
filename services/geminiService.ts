@@ -598,72 +598,94 @@ import { processImageForAI } from '../utils/imageProcessor';
 
 export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpenseData | null> => {
   try {
+    console.log('📸 Scanner: Starting analysis for', file.name, file.type, file.size);
+    
     const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
     
     if (!API_KEY) {
-      console.error('VITE_GEMINI_API_KEY not configured');
+      console.error('❌ VITE_GEMINI_API_KEY not configured');
+      alert('⚠️ Scanner: API Key non configurée. Vérifiez la configuration.');
       return null;
     }
 
+    console.log('✅ API Key présente:', API_KEY.substring(0, 20) + '...');
+
     // 1. Pre-process image (HEIC -> JPG, Resize, Compress)
+    console.log('🔄 Compression de l\'image...');
     const processedFile = await processImageForAI(file);
+    console.log('✅ Image compressée:', processedFile.size, 'bytes');
+    
     const base64Data = await fileToBase64(processedFile);
+    console.log('✅ Base64 généré:', base64Data.length, 'caractères');
 
     // 2. Direct REST API call (plus fiable que le SDK)
+    console.log('🚀 Appel API Gemini...');
+    
     const timeoutPromise = new Promise<any>((_, reject) =>
       setTimeout(() => reject(new Error('Timeout: 60s dépassé')), 60000)
     );
 
     const apiCall = async () => {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                {
-                  inline_data: {
-                    mime_type: processedFile.type,
-                    data: base64Data
-                  }
-                },
-                {
-                  text: `Agis comme un expert comptable. Analyse ce document (Ticket ou Facture).
-Extrais les données au format JSON uniquement.
+      // Utiliser gemini-1.5-flash (plus stable que 2.0-flash-exp)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+      
+      const body = {
+        contents: [{
+          parts: [
+            {
+              inline_data: {
+                mime_type: processedFile.type,
+                data: base64Data
+              }
+            },
+            {
+              text: `Tu es un expert comptable. Analyse ce ticket ou cette facture.
 
-Champs requis :
-- docType: "Ticket" ou "Facture"
-- date: Date au format YYYY-MM-DD
-- merchant: Nom du commerçant
-- amount: Montant total TTC (nombre décimal)
-- vat: Montant TVA (nombre ou null)
-- category: "Carburant", "Restaurant", "Matériel", "Loyer", "Assurances", "Télécoms", "Énergie", ou "Autre"
+Retourne SEULEMENT un objet JSON avec ces champs (PAS de markdown, PAS d'explication):
+{
+  "date": "YYYY-MM-DD",
+  "merchant": "nom du commerçant",
+  "amount": montant_decimal,
+  "vat": montant_tva_ou_null,
+  "category": "Matériel"
+}
 
-Réponds UNIQUEMENT avec JSON valide, sans markdown.
-Exemple: {"docType":"Ticket","date":"2026-01-16","merchant":"Carrefour","amount":45.67,"vat":null,"category":"Restaurant"}`
-                }
-              ]
-            }]
-          })
-        }
-      );
+Si tu ne trouves pas une donnée, mets une valeur par défaut cohérente.`
+            }
+          ]
+        }]
+      };
+      
+      console.log('📡 Envoi à Gemini 1.5 Flash...');
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      console.log('📥 Réponse:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API Error ${response.status}: ${errorText}`);
+        console.error('❌ Erreur API:', errorText);
+        throw new Error(`API ${response.status}: ${errorText.substring(0, 200)}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('✅ Réponse complète:', data);
+      return data;
     };
     
     const response = await Promise.race([apiCall(), timeoutPromise]) as any;
 
     // Extract text from REST API response
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+    console.log('📄 Texte extrait:', text);
+    
     if (!text) {
-      console.warn('No text in Gemini response:', response);
+      console.error('❌ Aucun texte dans la réponse:', response);
+      alert('⚠️ Scanner: Réponse vide de l\'IA. Essayez avec une image plus claire.');
       return null;
     }
 
@@ -672,6 +694,8 @@ Exemple: {"docType":"Ticket","date":"2026-01-16","merchant":"Carrefour","amount"
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
+
+    console.log('🧹 Texte nettoyé:', cleanText);
 
     // Define temporary interface for the raw AI response
     interface AIResponse {
@@ -686,6 +710,7 @@ Exemple: {"docType":"Ticket","date":"2026-01-16","merchant":"Carrefour","amount"
     }
 
     const rawData = JSON.parse(cleanText) as AIResponse;
+    console.log('✅ JSON parsé:', rawData);
 
     // Construct final data
     const finalData: ExtractedExpenseData = {
@@ -719,9 +744,30 @@ Exemple: {"docType":"Ticket","date":"2026-01-16","merchant":"Carrefour","amount"
       finalData.type = ExpenseType.FIXED;
     }
 
+    console.log('🎉 Données finales:', finalData);
     return finalData;
-  } catch (error) {
-    console.error('AI Expense Analysis failed:', error);
+  } catch (error: any) {
+    console.error('❌ Scanner Error Details:', {
+      message: error.message,
+      stack: error.stack,
+      file: file.name,
+      type: file.type,
+      size: file.size
+    });
+    
+    // Message utilisateur clair selon le type d'erreur
+    if (error.message?.includes('403')) {
+      alert('⚠️ Scanner: API key sans permission. Vérifiez les autorisations.');
+    } else if (error.message?.includes('429')) {
+      alert('⚠️ Scanner: Trop de requêtes. Attendez 1 minute et réessayez.');
+    } else if (error.message?.includes('Timeout')) {
+      alert('⚠️ Scanner: Fichier trop volumineux. Essayez une image plus petite (< 5 MB).');
+    } else if (error.message?.includes('JSON')) {
+      alert('⚠️ Scanner: Erreur de parsing. L\'IA a renvoyé un format inattendu.');
+    } else {
+      alert(`⚠️ Scanner: ${error.message || 'Erreur inconnue'}. Saisie manuelle disponible.`);
+    }
+    
     return null; // Let the UI handle manual entry
   }
 };
