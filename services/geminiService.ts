@@ -626,37 +626,59 @@ export const analyzeExpenseReceipt = async (file: File): Promise<ExtractedExpens
     );
 
     const apiCall = async () => {
-      // Utiliser gemini-flash-latest (stable et supporte les images)
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`;
+      // Utiliser gemini-1.5-flash-latest (plus stable et performant)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+      
+      // Déterminer le bon type MIME pour l'API
+      const mimeType = processedFile.type === 'application/pdf' ? 'application/pdf' : processedFile.type;
       
       const body = {
         contents: [{
           parts: [
             {
               inline_data: {
-                mime_type: processedFile.type,
+                mime_type: mimeType,
                 data: base64Data
               }
             },
             {
-              text: `Tu es un expert comptable. Analyse ce ticket ou cette facture.
+              text: `Tu es un expert comptable spécialisé dans la saisie de factures et tickets de caisse.
+              
+              TA MISSION :
+              Analyse ce document (Image ou PDF) et extrais les informations clés.
+              Sois précis et rigoureux.
 
-Retourne SEULEMENT un objet JSON avec ces champs (PAS de markdown, PAS d'explication):
-{
-  "date": "YYYY-MM-DD",
-  "merchant": "nom du commerçant",
-  "amount": montant_decimal,
-  "vat": montant_tva_ou_null,
-  "category": "Matériel"
-}
+              FORMAT DE SORTIE ATTENDU (JSON BRUT UNIQUEMENT) :
+              {
+                "docType": "Ticket" ou "Facture",
+                "date": "YYYY-MM-DD",
+                "merchant": "Nom complet du commerçant",
+                "amount": 0.00,
+                "vat": 0.00,
+                "category": "Categorie"
+              }
 
-Si tu ne trouves pas une donnée, mets une valeur par défaut cohérente.`
+              RÈGLES IMPORTANTES :
+              1. "date": Format YYYY-MM-DD (ex: 2024-03-25). Si non trouvée, utilise la date du jour.
+              2. "amount": Montant TOTAL TTC. Cherche "Total", "Net à payer", "TTC". Utilise le point comme séparateur décimal.
+              3. "vat": Montant de la TVA (Total TVA). Si non trouvé ou 0, mets null.
+              4. "category": Choisis LA MEILLEURE catégorie parmi : 
+                 - "Carburant" (Essence, Diesel, Station service)
+                 - "Restaurant" (Repas, Café, Boulangerie)
+                 - "Matériel" (Bricolage, Outillage, Matériaux, Leroy Merlin, Castorama)
+                 - "Loyer" (Quittance, Agence immo)
+                 - "Assurances" (Assurance pro, Auto)
+                 - "Télécoms" (Orange, SFR, Free, Bouygues)
+                 - "Énergie" (EDF, Engie, Eau)
+                 - "Autre" (Si rien ne correspond)
+
+              Réponds UNIQUEMENT avec le JSON valide. Pas de markdown, pas de texte avant/après.`
             }
           ]
         }]
       };
       
-      console.log('📡 Envoi à Gemini 1.5 Flash...');
+      console.log(`📡 Envoi à Gemini 1.5 Flash Latest (${mimeType})...`);
       
       const response = await fetch(url, {
         method: 'POST',

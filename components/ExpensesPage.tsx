@@ -63,6 +63,7 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
 
     // Handle File Upload & AI Analysis
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log("🚀 VERSION SCANNER: FIX APPLIQUÉ (v2)");
         const file = e.target.files?.[0];
         if (!file) return;
 
