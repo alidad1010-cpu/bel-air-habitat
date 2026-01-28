@@ -39,84 +39,92 @@ export default defineConfig(({ mode }) => {
       react(),
       // Fix: Activer PWA uniquement si DISABLE_PWA n'est pas défini
       // Le build fonctionne même si le service worker échoue (fichiers générés)
-      ...(process.env.DISABLE_PWA !== 'true' ? [VitePWA({
-        selfDestroying: true,
-        registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'logo.png', 'logo-high-res.png'],
-        manifest: {
-          name: 'Bel Air Habitat - Espace Pro',
-          short_name: 'Bel Air Pro',
-          description: 'Application de gestion de chantier pour Bel Air Habitat',
-          theme_color: '#10b981',
-          background_color: '#0f172a',
-          display: 'standalone',
-          orientation: 'portrait',
-          start_url: '/',
-          scope: '/',
-          icons: [
-            {
-              src: 'pwa-192x192.png',
-              sizes: '192x192',
-              type: 'image/png',
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-          ],
-        },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
-          cleanupOutdatedCaches: true,
-          clientsClaim: true,
-          skipWaiting: true,
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/webmail/],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
+      ...(process.env.DISABLE_PWA !== 'true'
+        ? [
+            VitePWA({
+              selfDestroying: true,
+              registerType: 'autoUpdate',
+              manifestFilename: 'manifest.json',
+              injectManifest: {
+                injectionPoint: undefined,
               },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
+              includeAssets: ['favicon.ico', 'logo.png', 'logo-high-res.png'],
+              manifest: {
+                name: 'Bel Air Habitat - Espace Pro',
+                short_name: 'Bel Air Pro',
+                description: 'Application de gestion de chantier pour Bel Air Habitat',
+                theme_color: '#10b981',
+                background_color: '#0f172a',
+                display: 'standalone',
+                orientation: 'portrait',
+                start_url: '/',
+                scope: '/',
+                icons: [
+                  {
+                    src: 'pwa-192x192.png',
+                    sizes: '192x192',
+                    type: 'image/png',
+                  },
+                  {
+                    src: 'pwa-512x512.png',
+                    sizes: '512x512',
+                    type: 'image/png',
+                    purpose: 'any maskable',
+                  },
+                ],
               },
-            },
-            {
-              urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'firebase-storage-images',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-                },
+              workbox: {
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
+                cleanupOutdatedCaches: true,
+                clientsClaim: true,
+                skipWaiting: true,
+                navigateFallback: '/index.html',
+                navigateFallbackDenylist: [/^\/webmail/],
+                runtimeCaching: [
+                  {
+                    urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+                    handler: 'CacheFirst',
+                    options: {
+                      cacheName: 'google-fonts-cache',
+                      expiration: {
+                        maxEntries: 10,
+                        maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
+                      },
+                      cacheableResponse: {
+                        statuses: [0, 200],
+                      },
+                    },
+                  },
+                  {
+                    urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+                    handler: 'CacheFirst',
+                    options: {
+                      cacheName: 'gstatic-fonts-cache',
+                      expiration: {
+                        maxEntries: 10,
+                        maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
+                      },
+                      cacheableResponse: {
+                        statuses: [0, 200],
+                      },
+                    },
+                  },
+                  {
+                    urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
+                    handler: 'StaleWhileRevalidate',
+                    options: {
+                      cacheName: 'firebase-storage-images',
+                      expiration: {
+                        maxEntries: 50,
+                        maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                      },
+                    },
+                  },
+                ],
               },
-            },
-          ],
-        },
-      })] : []),
+            }),
+          ]
+        : []),
     ],
     define: {
       // Inject environment variables for production build
@@ -125,9 +133,13 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify(env.VITE_FIREBASE_API_KEY),
       'import.meta.env.VITE_FIREBASE_APP_ID': JSON.stringify(env.VITE_FIREBASE_APP_ID),
       'import.meta.env.VITE_FIREBASE_AUTH_DOMAIN': JSON.stringify(env.VITE_FIREBASE_AUTH_DOMAIN),
-      'import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+      'import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(
+        env.VITE_FIREBASE_MESSAGING_SENDER_ID
+      ),
       'import.meta.env.VITE_FIREBASE_PROJECT_ID': JSON.stringify(env.VITE_FIREBASE_PROJECT_ID),
-      'import.meta.env.VITE_FIREBASE_STORAGE_BUCKET': JSON.stringify(env.VITE_FIREBASE_STORAGE_BUCKET),
+      'import.meta.env.VITE_FIREBASE_STORAGE_BUCKET': JSON.stringify(
+        env.VITE_FIREBASE_STORAGE_BUCKET
+      ),
       'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
     },
     resolve: {

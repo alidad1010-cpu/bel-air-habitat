@@ -27,6 +27,7 @@ export enum AuditResource {
 }
 
 export interface AuditLog {
+  [key: string]: any; // Index signature for dynamic property access
   id: string;
   userId: string;
   userName: string;
@@ -166,18 +167,30 @@ class AuditLogService {
    * Log de connexion
    */
   async logLogin(user: User | null) {
-    return this.log(user || ({} as User), AuditAction.LOGIN, AuditResource.USER, user?.id || 'unknown', {
-      resourceName: user?.email || 'Unknown user',
-    });
+    return this.log(
+      user || ({} as User),
+      AuditAction.LOGIN,
+      AuditResource.USER,
+      user?.id || 'unknown',
+      {
+        resourceName: user?.email || 'Unknown user',
+      }
+    );
   }
 
   /**
    * Log de déconnexion
    */
   async logLogout(user: User | null) {
-    return this.log(user || ({} as User), AuditAction.LOGOUT, AuditResource.USER, user?.id || 'unknown', {
-      resourceName: user?.email || 'Unknown user',
-    });
+    return this.log(
+      user || ({} as User),
+      AuditAction.LOGOUT,
+      AuditResource.USER,
+      user?.id || 'unknown',
+      {
+        resourceName: user?.email || 'Unknown user',
+      }
+    );
   }
 }
 

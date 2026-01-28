@@ -217,6 +217,7 @@ const DashboardSkeleton = () => (
 
 // Define Shared Note Interface locally or imported
 export interface SharedNote {
+  [key: string]: any; // Index signature for dynamic property access
   id: string;
   content: string;
   authorName: string;
@@ -700,41 +701,44 @@ const App: React.FC = () => {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // OPTIMIZATION: Mémoriser la fonction de recherche globale
-  const handleGlobalSearch = useCallback((query: string) => {
-    if (!query || query.length < 2) {
-      setGlobalSearchResults(null);
-      return;
-    }
-    const lowerQuery = query.toLowerCase();
+  const handleGlobalSearch = useCallback(
+    (query: string) => {
+      if (!query || query.length < 2) {
+        setGlobalSearchResults(null);
+        return;
+      }
+      const lowerQuery = query.toLowerCase();
 
-    const matchedProjects = projects.filter(
-      (p) =>
-        p.title.toLowerCase().includes(lowerQuery) ||
-        p.client.name.toLowerCase().includes(lowerQuery) ||
-        p.id.toLowerCase().includes(lowerQuery) ||
-        p.description?.toLowerCase().includes(lowerQuery)
-    );
+      const matchedProjects = projects.filter(
+        (p) =>
+          p.title.toLowerCase().includes(lowerQuery) ||
+          p.client.name.toLowerCase().includes(lowerQuery) ||
+          p.id.toLowerCase().includes(lowerQuery) ||
+          p.description?.toLowerCase().includes(lowerQuery)
+      );
 
-    const matchedClients = clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(lowerQuery) ||
-        c.email?.toLowerCase().includes(lowerQuery) ||
-        c.phone?.toLowerCase().includes(lowerQuery)
-    );
+      const matchedClients = clients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(lowerQuery) ||
+          c.email?.toLowerCase().includes(lowerQuery) ||
+          c.phone?.toLowerCase().includes(lowerQuery)
+      );
 
-    const matchedEmployees = employees.filter(
-      (e) =>
-        (e.firstName + ' ' + e.lastName).toLowerCase().includes(lowerQuery) ||
-        e.email?.toLowerCase().includes(lowerQuery) ||
-        e.position.toLowerCase().includes(lowerQuery)
-    );
+      const matchedEmployees = employees.filter(
+        (e) =>
+          (e.firstName + ' ' + e.lastName).toLowerCase().includes(lowerQuery) ||
+          e.email?.toLowerCase().includes(lowerQuery) ||
+          e.position.toLowerCase().includes(lowerQuery)
+      );
 
-    setGlobalSearchResults({
-      projects: matchedProjects,
-      clients: matchedClients,
-      employees: matchedEmployees,
-    });
-  }, [projects, clients, employees]);
+      setGlobalSearchResults({
+        projects: matchedProjects,
+        clients: matchedClients,
+        employees: matchedEmployees,
+      });
+    },
+    [projects, clients, employees]
+  );
 
   useEffect(() => {
     handleGlobalSearch(debouncedSearchQuery);
@@ -818,115 +822,135 @@ const App: React.FC = () => {
 
   // KEYBOARD SHORTCUTS
   const { toggleTheme } = useTheme();
-  
+
   // BUG FIX 1: Memoize shortcuts array to prevent memory leak
   // The shortcuts array was being recreated on every render, causing handleKeyDown
   // to be recreated, which re-added event listeners without proper cleanup
-  const keyboardShortcuts = useMemo(() => [
-    {
-      key: StandardShortcuts.SEARCH,
-      ctrlOrCmd: true,
-      action: () => {
-        const searchInput = document.querySelector('input[type="text"][placeholder*="Recherche"], input[type="text"][placeholder*="recherche"]') as HTMLInputElement;
-        if (searchInput) {
-          searchInput.focus();
-          searchInput.select();
-        }
+  const keyboardShortcuts = useMemo(
+    () => [
+      {
+        key: StandardShortcuts.SEARCH,
+        ctrlOrCmd: true,
+        action: () => {
+          const searchInput = document.querySelector(
+            'input[type="text"][placeholder*="Recherche"], input[type="text"][placeholder*="recherche"]'
+          ) as HTMLInputElement;
+          if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+          }
+        },
+        description: 'Ouvrir la recherche',
       },
-      description: 'Ouvrir la recherche',
-    },
-    {
-      key: StandardShortcuts.NEW_PROJECT,
-      ctrlOrCmd: true,
-      action: () => {
-        if (currentUser) setIsModalOpen(true);
+      {
+        key: StandardShortcuts.NEW_PROJECT,
+        ctrlOrCmd: true,
+        action: () => {
+          if (currentUser) setIsModalOpen(true);
+        },
+        description: 'Nouveau projet',
       },
-      description: 'Nouveau projet',
-    },
-    {
-      key: StandardShortcuts.SETTINGS,
-      ctrlOrCmd: true,
-      action: () => {
-        if (currentUser) handleTabSwitch('settings');
+      {
+        key: StandardShortcuts.SETTINGS,
+        ctrlOrCmd: true,
+        action: () => {
+          if (currentUser) handleTabSwitch('settings');
+        },
+        description: 'Ouvrir les paramètres',
       },
-      description: 'Ouvrir les paramètres',
-    },
-    {
-      key: StandardShortcuts.HELP,
-      ctrlOrCmd: true,
-      action: () => {
-        // Toggle theme as help shortcut (can be changed later)
-        toggleTheme();
+      {
+        key: StandardShortcuts.HELP,
+        ctrlOrCmd: true,
+        action: () => {
+          // Toggle theme as help shortcut (can be changed later)
+          toggleTheme();
+        },
+        description: 'Basculer le thème',
       },
-      description: 'Basculer le thème',
-    },
-    {
-      key: StandardShortcuts.ESCAPE,
-      action: () => {
-        if (isModalOpen) setIsModalOpen(false);
-        if (isProfileModalOpen) setIsProfileModalOpen(false);
-        if (isImportProjectsModalOpen) setIsImportProjectsModalOpen(false);
-        setGlobalSearchResults(null);
-        setSearchQuery('');
+      {
+        key: StandardShortcuts.ESCAPE,
+        action: () => {
+          if (isModalOpen) setIsModalOpen(false);
+          if (isProfileModalOpen) setIsProfileModalOpen(false);
+          if (isImportProjectsModalOpen) setIsImportProjectsModalOpen(false);
+          setGlobalSearchResults(null);
+          setSearchQuery('');
+        },
+        description: 'Fermer les modales',
       },
-      description: 'Fermer les modales',
-    },
-  ], [currentUser, handleTabSwitch, toggleTheme, isModalOpen, isProfileModalOpen, isImportProjectsModalOpen]);
-  
+    ],
+    [
+      currentUser,
+      handleTabSwitch,
+      toggleTheme,
+      isModalOpen,
+      isProfileModalOpen,
+      isImportProjectsModalOpen,
+    ]
+  );
+
   useKeyboardShortcuts({
     enabled: !!currentUser, // Only enable when logged in
     shortcuts: keyboardShortcuts,
   });
 
-  const addProject = useCallback(async (project: Project) => {
-    const cleanProject = sanitizeStorageData(project);
-    setProjects((prev) => {
-      const newProjects = [cleanProject, ...prev];
-      safeLocalStorageSet('artisan-projects-backup', newProjects);
-      return newProjects;
-    });
-    setActiveTab('projects');
-    setStatusFilter(ProjectStatus.NEW);
-    await saveDocument('projects', cleanProject.id, cleanProject);
-    // Audit Log
-    await auditLogService.logCreate(currentUser, AuditResource.PROJECT, cleanProject.id, cleanProject.title);
-
-    // BUG FIX 2: Check for existing client and create new one if needed
-    // We need to do this outside setState because setState updater functions can't be async
-    setClients((prevClients) => {
-      const existingClient = prevClients.find((c) => {
-        const emailMatch =
-          c.email &&
-          cleanProject.client.email &&
-          c.email.toLowerCase() === cleanProject.client.email.toLowerCase();
-        const nameMatch =
-          c.name.trim().toLowerCase() === cleanProject.client.name.trim().toLowerCase();
-        return emailMatch || nameMatch;
+  const addProject = useCallback(
+    async (project: Project) => {
+      const cleanProject = sanitizeStorageData(project);
+      setProjects((prev) => {
+        const newProjects = [cleanProject, ...prev];
+        safeLocalStorageSet('artisan-projects-backup', newProjects);
+        return newProjects;
       });
+      setActiveTab('projects');
+      setStatusFilter(ProjectStatus.NEW);
+      await saveDocument('projects', cleanProject.id, cleanProject);
+      // Audit Log
+      await auditLogService.logCreate(
+        currentUser,
+        AuditResource.PROJECT,
+        cleanProject.id,
+        cleanProject.title
+      );
 
-      if (!existingClient) {
-        const newClient: Client = {
-          ...cleanProject.client,
-          id: Date.now().toString(),
-          type: cleanProject.client.type || 'PARTICULIER', // Default type
-        };
-        const newClients = [...prevClients, newClient];
-        safeLocalStorageSet('artisan-clients-backup', newClients);
-        
-        // BUG FIX 2: Save client asynchronously after state update
-        // Without await, local state updates immediately but Firestore save happens async
-        // This can cause data sync issues if save fails or component unmounts
-        // We save it outside the setState to avoid making the updater async
-        saveDocument('clients', newClient.id!, newClient).catch((error) => {
-          console.error('Failed to save new client:', error);
-          ErrorHandler.handle(error, 'App - addProject - Client Save');
+      // BUG FIX 2: Check for existing client and create new one if needed
+      // We need to do this outside setState because setState updater functions can't be async
+      setClients((prevClients) => {
+        const existingClient = prevClients.find((c) => {
+          const emailMatch =
+            c.email &&
+            cleanProject.client.email &&
+            c.email.toLowerCase() === cleanProject.client.email.toLowerCase();
+          const nameMatch =
+            c.name.trim().toLowerCase() === cleanProject.client.name.trim().toLowerCase();
+          return emailMatch || nameMatch;
         });
-        
-        return newClients;
-      }
-      return prevClients;
-    });
-  }, [currentUser]);
+
+        if (!existingClient) {
+          const newClient: Client = {
+            ...cleanProject.client,
+            id: Date.now().toString(),
+            type: cleanProject.client.type || 'PARTICULIER', // Default type
+          };
+          const newClients = [...prevClients, newClient];
+          safeLocalStorageSet('artisan-clients-backup', newClients);
+
+          // BUG FIX 2: Save client asynchronously after state update
+          // Without await, local state updates immediately but Firestore save happens async
+          // This can cause data sync issues if save fails or component unmounts
+          // We save it outside the setState to avoid making the updater async
+          saveDocument('clients', newClient.id!, newClient).catch((error) => {
+            console.error('Failed to save new client:', error);
+            ErrorHandler.handle(error, 'App - addProject - Client Save');
+          });
+
+          return newClients;
+        }
+        return prevClients;
+      });
+    },
+    [currentUser]
+  );
 
   const handleBulkAddProjects = useCallback(
     async (newProjects: Project[]) => {
@@ -1003,40 +1027,52 @@ const App: React.FC = () => {
     [addProject]
   );
 
-  const updateProject = useCallback(async (project: Project) => {
-    const cleanProject = sanitizeStorageData(project);
-    const oldProject = projects.find((p) => p.id === cleanProject.id);
-    setProjects((prev) => {
-      const updatedProjects = prev.map((p) => (p.id === cleanProject.id ? cleanProject : p));
-      safeLocalStorageSet('artisan-projects-backup', updatedProjects);
-      return updatedProjects;
-    });
-    await saveDocument('projects', cleanProject.id, cleanProject);
-    // Audit Log
-    await auditLogService.logUpdate(
-      currentUser,
-      AuditResource.PROJECT,
-      cleanProject.id,
-      cleanProject.title,
-      oldProject,
-      cleanProject
-    );
-  }, [currentUser, projects]);
+  const updateProject = useCallback(
+    async (project: Project) => {
+      const cleanProject = sanitizeStorageData(project);
+      const oldProject = projects.find((p) => p.id === cleanProject.id);
+      setProjects((prev) => {
+        const updatedProjects = prev.map((p) => (p.id === cleanProject.id ? cleanProject : p));
+        safeLocalStorageSet('artisan-projects-backup', updatedProjects);
+        return updatedProjects;
+      });
+      await saveDocument('projects', cleanProject.id, cleanProject);
+      // Audit Log
+      await auditLogService.logUpdate(
+        currentUser,
+        AuditResource.PROJECT,
+        cleanProject.id,
+        cleanProject.title,
+        oldProject,
+        cleanProject
+      );
+    },
+    [currentUser, projects]
+  );
 
-  const handleDeleteProject = useCallback(async (id: string) => {
-    const project = projects.find((p) => p.id === id);
-    setProjects((prev) => {
-      const remainingProjects = prev.filter((p) => p.id !== id);
-      safeLocalStorageSet('artisan-projects-backup', remainingProjects);
-      return remainingProjects;
-    });
-    setSelectedProject(null);
-    await deleteDocument('projects', id);
-    // Audit Log
-    if (project) {
-      await auditLogService.logDelete(currentUser, AuditResource.PROJECT, id, project.title, project);
-    }
-  }, [currentUser, projects]);
+  const handleDeleteProject = useCallback(
+    async (id: string) => {
+      const project = projects.find((p) => p.id === id);
+      setProjects((prev) => {
+        const remainingProjects = prev.filter((p) => p.id !== id);
+        safeLocalStorageSet('artisan-projects-backup', remainingProjects);
+        return remainingProjects;
+      });
+      setSelectedProject(null);
+      await deleteDocument('projects', id);
+      // Audit Log
+      if (project) {
+        await auditLogService.logDelete(
+          currentUser,
+          AuditResource.PROJECT,
+          id,
+          project.title,
+          project
+        );
+      }
+    },
+    [currentUser, projects]
+  );
 
   const validateQuote = useCallback(
     async (e: React.MouseEvent, id: string) => {
@@ -1067,115 +1103,139 @@ const App: React.FC = () => {
     [handleTabSwitch]
   );
 
-  const handleAddClient = useCallback(async (client: Client) => {
-    const id = Date.now().toString();
-    const fullClient = { ...client, id };
-    const cleanClient = sanitizeStorageData(fullClient);
-    setClients((prev) => {
-      const newClients = [...prev, cleanClient];
-      safeLocalStorageSet('artisan-clients-backup', newClients);
-      return newClients;
-    });
-    await saveDocument('clients', id, cleanClient);
-    // Audit Log
-    await auditLogService.logCreate(currentUser, AuditResource.CLIENT, id, cleanClient.name);
-  }, [currentUser]);
-
-  const handleDeleteClient = useCallback(async (client: Client) => {
-    if (window.confirm('Supprimer ce client ?')) {
+  const handleAddClient = useCallback(
+    async (client: Client) => {
+      const id = Date.now().toString();
+      const fullClient = { ...client, id };
+      const cleanClient = sanitizeStorageData(fullClient);
       setClients((prev) => {
-        const remainingClients = prev.filter((c) => c.id !== client.id);
-        safeLocalStorageSet('artisan-clients-backup', remainingClients);
-        return remainingClients;
+        const newClients = [...prev, cleanClient];
+        safeLocalStorageSet('artisan-clients-backup', newClients);
+        return newClients;
       });
-      if (client.id) {
-        await deleteDocument('clients', client.id);
-        // Audit Log
-        await auditLogService.logDelete(currentUser, AuditResource.CLIENT, client.id, client.name, client);
-      }
-    }
-  }, [currentUser]);
+      await saveDocument('clients', id, cleanClient);
+      // Audit Log
+      await auditLogService.logCreate(currentUser, AuditResource.CLIENT, id, cleanClient.name);
+    },
+    [currentUser]
+  );
 
-  const handleUpdateClient = useCallback(async (client: Client) => {
-    const cleanClient = sanitizeStorageData(client);
-    const oldClient = clients.find((c) => c.id === cleanClient.id);
-    setClients((prev) => {
-      const updated = prev.map((c) => (c.id === cleanClient.id ? cleanClient : c));
-      safeLocalStorageSet('artisan-clients-backup', updated);
-      return updated;
-    });
-    if (cleanClient.id) {
-      await saveDocument('clients', cleanClient.id, cleanClient);
+  const handleDeleteClient = useCallback(
+    async (client: Client) => {
+      if (window.confirm('Supprimer ce client ?')) {
+        setClients((prev) => {
+          const remainingClients = prev.filter((c) => c.id !== client.id);
+          safeLocalStorageSet('artisan-clients-backup', remainingClients);
+          return remainingClients;
+        });
+        if (client.id) {
+          await deleteDocument('clients', client.id);
+          // Audit Log
+          await auditLogService.logDelete(
+            currentUser,
+            AuditResource.CLIENT,
+            client.id,
+            client.name,
+            client
+          );
+        }
+      }
+    },
+    [currentUser]
+  );
+
+  const handleUpdateClient = useCallback(
+    async (client: Client) => {
+      const cleanClient = sanitizeStorageData(client);
+      const oldClient = clients.find((c) => c.id === cleanClient.id);
+      setClients((prev) => {
+        const updated = prev.map((c) => (c.id === cleanClient.id ? cleanClient : c));
+        safeLocalStorageSet('artisan-clients-backup', updated);
+        return updated;
+      });
+      if (cleanClient.id) {
+        await saveDocument('clients', cleanClient.id, cleanClient);
+        // Audit Log
+        await auditLogService.logUpdate(
+          currentUser,
+          AuditResource.CLIENT,
+          cleanClient.id,
+          cleanClient.name,
+          oldClient,
+          cleanClient
+        );
+      }
+    },
+    [currentUser, clients]
+  );
+
+  const handleAddEmployee = useCallback(
+    async (emp: Employee) => {
+      const cleanEmp = sanitizeStorageData(emp);
+      setEmployees((prev) => {
+        const newEmps = [...prev, cleanEmp];
+        safeLocalStorageSet('artisan-employees-backup', newEmps);
+        return newEmps;
+      });
+      await saveDocument('employees', cleanEmp.id, cleanEmp);
+      // Audit Log
+      await auditLogService.logCreate(
+        currentUser,
+        AuditResource.EMPLOYEE,
+        cleanEmp.id,
+        `${cleanEmp.firstName} ${cleanEmp.lastName}`
+      );
+    },
+    [currentUser]
+  );
+
+  const handleUpdateEmployee = useCallback(
+    async (emp: Employee) => {
+      const cleanEmp = sanitizeStorageData(emp);
+      const oldEmp = employees.find((e) => e.id === cleanEmp.id);
+      setEmployees((prev) => {
+        const updated = prev.map((e) => (e.id === cleanEmp.id ? cleanEmp : e));
+        safeLocalStorageSet('artisan-employees-backup', updated);
+        return updated;
+      });
+      await saveDocument('employees', cleanEmp.id, cleanEmp);
       // Audit Log
       await auditLogService.logUpdate(
         currentUser,
-        AuditResource.CLIENT,
-        cleanClient.id,
-        cleanClient.name,
-        oldClient,
-        cleanClient
+        AuditResource.EMPLOYEE,
+        cleanEmp.id,
+        `${cleanEmp.firstName} ${cleanEmp.lastName}`,
+        oldEmp,
+        cleanEmp
       );
-    }
-  }, [currentUser, clients]);
+    },
+    [currentUser, employees]
+  );
 
-  const handleAddEmployee = useCallback(async (emp: Employee) => {
-    const cleanEmp = sanitizeStorageData(emp);
-    setEmployees((prev) => {
-      const newEmps = [...prev, cleanEmp];
-      safeLocalStorageSet('artisan-employees-backup', newEmps);
-      return newEmps;
-    });
-    await saveDocument('employees', cleanEmp.id, cleanEmp);
-    // Audit Log
-    await auditLogService.logCreate(
-      currentUser,
-      AuditResource.EMPLOYEE,
-      cleanEmp.id,
-      `${cleanEmp.firstName} ${cleanEmp.lastName}`
-    );
-  }, [currentUser]);
-
-  const handleUpdateEmployee = useCallback(async (emp: Employee) => {
-    const cleanEmp = sanitizeStorageData(emp);
-    const oldEmp = employees.find((e) => e.id === cleanEmp.id);
-    setEmployees((prev) => {
-      const updated = prev.map((e) => (e.id === cleanEmp.id ? cleanEmp : e));
-      safeLocalStorageSet('artisan-employees-backup', updated);
-      return updated;
-    });
-    await saveDocument('employees', cleanEmp.id, cleanEmp);
-    // Audit Log
-    await auditLogService.logUpdate(
-      currentUser,
-      AuditResource.EMPLOYEE,
-      cleanEmp.id,
-      `${cleanEmp.firstName} ${cleanEmp.lastName}`,
-      oldEmp,
-      cleanEmp
-    );
-  }, [currentUser, employees]);
-
-  const handleDeleteEmployee = useCallback(async (id: string) => {
-    if (window.confirm('Supprimer ce salarié ?')) {
-      const employee = employees.find((e) => e.id === id);
-      setEmployees((prev) => {
-        const remaining = prev.filter((e) => e.id !== id);
-        safeLocalStorageSet('artisan-employees-backup', remaining);
-        return remaining;
-      });
-      await deleteDocument('employees', id);
-      // Audit Log
-      if (employee) {
-        await auditLogService.logDelete(
-          currentUser,
-          AuditResource.EMPLOYEE,
-          id,
-          `${employee.firstName} ${employee.lastName}`,
-          employee
-        );
+  const handleDeleteEmployee = useCallback(
+    async (id: string) => {
+      if (window.confirm('Supprimer ce salarié ?')) {
+        const employee = employees.find((e) => e.id === id);
+        setEmployees((prev) => {
+          const remaining = prev.filter((e) => e.id !== id);
+          safeLocalStorageSet('artisan-employees-backup', remaining);
+          return remaining;
+        });
+        await deleteDocument('employees', id);
+        // Audit Log
+        if (employee) {
+          await auditLogService.logDelete(
+            currentUser,
+            AuditResource.EMPLOYEE,
+            id,
+            `${employee.firstName} ${employee.lastName}`,
+            employee
+          );
+        }
       }
-    }
-  }, [currentUser, employees]);
+    },
+    [currentUser, employees]
+  );
 
   const handleUpdateAdminData = async (newData: CompanyAdministrativeData) => {
     setAdminData(newData);
@@ -1682,17 +1742,30 @@ const App: React.FC = () => {
             <Breadcrumbs
               items={[
                 {
-                  label: activeTab === 'dashboard' ? 'Tableau de bord' :
-                         activeTab === 'tasks' ? 'Mes Tâches' :
-                         activeTab === 'agenda' ? 'Agenda' :
-                         activeTab === 'projects' ? 'Dossiers' :
-                         activeTab === 'clients' ? 'Clients' :
-                         activeTab === 'prospection' ? 'Prospection' :
-                         activeTab === 'partners' ? 'Partenaires' :
-                         activeTab === 'employees' ? 'Salariés' :
-                         activeTab === 'administrative' ? 'Administratif' :
-                         activeTab === 'expenses' ? 'Dépenses' :
-                         activeTab === 'settings' ? 'Paramètres' : 'Accueil',
+                  label:
+                    activeTab === 'dashboard'
+                      ? 'Tableau de bord'
+                      : activeTab === 'tasks'
+                        ? 'Mes Tâches'
+                        : activeTab === 'agenda'
+                          ? 'Agenda'
+                          : activeTab === 'projects'
+                            ? 'Dossiers'
+                            : activeTab === 'clients'
+                              ? 'Clients'
+                              : activeTab === 'prospection'
+                                ? 'Prospection'
+                                : activeTab === 'partners'
+                                  ? 'Partenaires'
+                                  : activeTab === 'employees'
+                                    ? 'Salariés'
+                                    : activeTab === 'administrative'
+                                      ? 'Administratif'
+                                      : activeTab === 'expenses'
+                                        ? 'Dépenses'
+                                        : activeTab === 'settings'
+                                          ? 'Paramètres'
+                                          : 'Accueil',
                   onClick: () => {},
                 },
                 ...(selectedProject
@@ -1768,7 +1841,6 @@ const App: React.FC = () => {
                   }}
                 />
               )}
-
             </div>
           </div>
 

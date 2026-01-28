@@ -7,14 +7,20 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  enableIndexedDbPersistence,
+  persistentLocalCache,
   where,
   orderBy,
   limit,
   type Firestore,
 } from 'firebase/firestore';
 export { where, orderBy, limit, query, collection };
-import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  type FirebaseStorage,
+} from 'firebase/storage';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -66,7 +72,15 @@ let auth: Auth | null = null;
 
 try {
   app = initializeApp(firebaseConfig);
-  db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+
+  // Initialize Firestore with new persistent cache API
+  db = initializeFirestore(app, {
+    ignoreUndefinedProperties: true,
+    localCache: persistentLocalCache({
+      tabManager: undefined, // Use default tab manager
+    }),
+  });
+
   storage = getStorage(app);
   auth = getAuth(app);
 
@@ -79,11 +93,6 @@ try {
     .catch((error) => {
       console.warn('Auth Persistence Error:', error);
     });
-
-  // Tentative de persistance hors ligne
-  enableIndexedDbPersistence(db).catch((err) => {
-    // Silently fail if persistence not supported
-  });
 } catch (e) {
   console.warn('Firebase Init Error (Offline Mode):', e);
 }
@@ -97,7 +106,10 @@ export { db, auth, storage };
  * Supports optional query constraints
  */
 // Types pour les contraintes de requête
-type QueryConstraint = ReturnType<typeof where> | ReturnType<typeof orderBy> | ReturnType<typeof limit>;
+type QueryConstraint =
+  | ReturnType<typeof where>
+  | ReturnType<typeof orderBy>
+  | ReturnType<typeof limit>;
 
 export const subscribeToCollection = (
   collectionName: string,
@@ -127,7 +139,11 @@ export const subscribeToCollection = (
 /**
  * Sauvegarde ou Met à jour un document (Écriture)
  */
-export const saveDocument = async (collectionName: string, docId: string, data: Record<string, unknown>) => {
+export const saveDocument = async (
+  collectionName: string,
+  docId: string,
+  data: Record<string, unknown>
+) => {
   try {
     if (!db) throw new Error('Database not initialized');
     await setDoc(doc(db, collectionName, docId), data, { merge: true });
@@ -135,7 +151,10 @@ export const saveDocument = async (collectionName: string, docId: string, data: 
     // OPTIMIZATION: Utiliser ErrorHandler pour gestion cohérente
     const error = e instanceof Error ? e : new Error('Unknown error');
     if (import.meta.env.DEV) {
-      console.warn(`[Sauvegarde Locale] Synchro Cloud impossible pour ${collectionName}/${docId}`, error);
+      console.warn(
+        `[Sauvegarde Locale] Synchro Cloud impossible pour ${collectionName}/${docId}`,
+        error
+      );
     }
     // Logique de retry ou queue locale pourrait être ajoutée ici
   }
@@ -168,6 +187,7 @@ export const uploadFileToCloud = async (path: string, file: File): Promise<strin
 
   const performUpload = async (attempt: number): Promise<string> => {
     try {
+      if (!storage) throw new Error('Storage not initialized');
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, file);
       return await getDownloadURL(snapshot.ref);

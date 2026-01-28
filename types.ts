@@ -85,6 +85,7 @@ export interface Contact {
 }
 
 export interface Client {
+  [key: string]: any; // Index signature for dynamic property access
   id?: string;
   name: string;
   email: string;
@@ -138,12 +139,14 @@ export interface ProjectTask {
 }
 
 export interface AppNotification {
+  [key: string]: any; // Index signature for dynamic property access
   id: string;
   type: 'ALERT' | 'WARNING' | 'INFO' | 'SUCCESS';
   title: string;
   message: string;
   projectId?: string;
   date: number;
+  read?: boolean; // Track if notification has been read
 }
 
 export interface PurchaseOrder {
@@ -406,6 +409,7 @@ export interface Prospect {
 }
 
 export interface Expense {
+  [key: string]: any; // Index signature for dynamic property access
   id: string;
   date: string; // ISO Date of the expense
   merchant: string; // "Total Energies", "Leroy Merlin"

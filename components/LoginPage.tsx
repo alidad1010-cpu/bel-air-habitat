@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, User as UserIcon, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  User as UserIcon,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+} from 'lucide-react';
 import { signIn } from '../services/firebaseService';
 import ErrorHandler from '../services/errorService';
 
@@ -45,7 +53,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
       <div
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80")',
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -56,7 +65,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-md p-6 mx-4">
         <div className="glass-card-dark rounded-3xl overflow-hidden animate-fade-in-up">
-
           {/* Header */}
           <div className="p-8 pb-0 text-center">
             <div className="inline-flex p-4 rounded-full bg-white dark:bg-slate-900/5 mb-6 shadow-inner ring-1 ring-white/10">
@@ -81,7 +89,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider ml-1">Identifiant</label>
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider ml-1">
+                  Identifiant
+                </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <UserIcon className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
@@ -90,6 +100,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
                     type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
                     className="block w-full pl-11 pr-4 py-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all text-base"
                     placeholder="votre@email.com"
                     required
@@ -99,7 +110,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider ml-1">Mot de passe</label>
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider ml-1">
+                    Mot de passe
+                  </label>
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
@@ -113,9 +126,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
                     <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
                   </div>
                   <input
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
                     className="block w-full pl-11 pr-12 py-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all text-base"
                     placeholder="••••••••"
                     required
@@ -152,7 +166,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
               </div>
             </form>
           </div>
-
         </div>
       </div>
 
@@ -167,30 +180,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
       </div>
 
       {/* Forgot Password Modal */}
-      {
-        showForgotPassword && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100">
-              <h3 className="text-xl font-bold text-white mb-2">Réinitialisation</h3>
-              <p className="text-slate-300 text-sm mb-6 leading-relaxed">
-                Pour des raisons de sécurité, veuillez contacter l'administrateur pour réinitialiser votre accès :
-              </p>
-              <a
-                href="mailto:contact@belairhabitat.com"
-                className="flex items-center justify-center w-full p-3 mb-4 bg-slate-700 hover:bg-slate-600 text-emerald-400 rounded-xl font-medium transition-colors border border-slate-600"
-              >
-                contact@belairhabitat.com
-              </a>
-              <button
-                onClick={() => setShowForgotPassword(false)}
-                className="w-full py-3 text-sm font-bold text-slate-300 hover:text-slate-900 dark:text-white dark:text-white transition-colors"
-              >
-                Retour à la connexion
-              </button>
-            </div>
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100">
+            <h3 className="text-xl font-bold text-white mb-2">Réinitialisation</h3>
+            <p className="text-slate-300 text-sm mb-6 leading-relaxed">
+              Pour des raisons de sécurité, veuillez contacter l'administrateur pour réinitialiser
+              votre accès :
+            </p>
+            <a
+              href="mailto:contact@belairhabitat.com"
+              className="flex items-center justify-center w-full p-3 mb-4 bg-slate-700 hover:bg-slate-600 text-emerald-400 rounded-xl font-medium transition-colors border border-slate-600"
+            >
+              contact@belairhabitat.com
+            </a>
+            <button
+              onClick={() => setShowForgotPassword(false)}
+              className="w-full py-3 text-sm font-bold text-slate-300 hover:text-slate-900 dark:text-white dark:text-white transition-colors"
+            >
+              Retour à la connexion
+            </button>
           </div>
-        )
-      }
+        </div>
+      )}
     </div>
   );
 };
