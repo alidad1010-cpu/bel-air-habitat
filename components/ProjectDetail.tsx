@@ -35,6 +35,11 @@ import {
   X,
   Copy,
   MessageCircle,
+  Layers,
+  Package,
+  TrendingUp,
+  ChevronRight,
+  Wrench,
 } from 'lucide-react';
 import { generatePurchaseOrderPDF } from '../services/pdfService';
 import { generateWorkOrderEmailLink } from '../services/emailService';
@@ -50,6 +55,9 @@ import {
   Expense,
   ExpenseCategory,
   ExpenseType,
+  RenovationPhase,
+  ProjectPhase,
+  MaterialItem,
 } from '../types';
 import { uploadFileToCloud } from '../services/firebaseService';
 import { extractQuoteAmount, analyzeExpenseReceipt } from '../services/geminiService';
@@ -1066,6 +1074,9 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   const tabs = [
     { id: 'Principal', label: 'Principal', icon: FileText },
+    { id: 'Phases', label: 'Phases Chantier', icon: Layers },
+    { id: 'Materiaux', label: 'Matériaux', icon: Package },
+    { id: 'Budget', label: 'Budget', icon: TrendingUp },
     { id: 'Sous-traitance', label: 'Sous-traitance / Achats', icon: ShoppingCart },
     { id: 'Contact', label: 'Contact', icon: User },
     { id: 'Document', label: 'Documents', icon: FileText },
@@ -2079,6 +2090,600 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ========== PHASES CHANTIER TAB ========== */}
+          {activeTab === 'Phases' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className={sectionTitleClass}>
+                  <Layers size={18} className="mr-2" /> Timeline des Phases de Rénovation
+                </h3>
+                <button
+                  onClick={() => {
+                    const defaultPhases: ProjectPhase[] = Object.values(RenovationPhase).map((phase, i) => ({
+                      id: `phase_${Date.now()}_${i}`,
+                      phase,
+                      label: {
+                        [RenovationPhase.DIAGNOSTIC]: 'Diagnostic technique',
+                        [RenovationPhase.DEVIS]: 'Chiffrage & Devis',
+                        [RenovationPhase.PREPARATION]: 'Préparation chantier',
+                        [RenovationPhase.DEMOLITION]: 'Démolition / Dépose',
+                        [RenovationPhase.GROS_OEUVRE]: 'Gros œuvre / Maçonnerie',
+                        [RenovationPhase.SECOND_OEUVRE]: 'Plomberie, Électricité, Menuiserie',
+                        [RenovationPhase.FINITIONS]: 'Peinture, Carrelage, Sols',
+                        [RenovationPhase.NETTOYAGE]: 'Nettoyage fin de chantier',
+                        [RenovationPhase.RECEPTION]: 'Réception & Levée de réserves',
+                      }[phase],
+                      status: 'NOT_STARTED' as const,
+                      completionPercent: 0,
+                    }));
+                    const updated = { ...formData, phases: defaultPhases };
+                    setFormData(updated);
+                    onSave(updated);
+                    setSaveStatus('modified');
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm disabled:opacity-50"
+                  disabled={!!(formData.phases && formData.phases.length > 0)}
+                >
+                  <Plus size={16} className="inline mr-1" /> Initialiser les phases
+                </button>
+              </div>
+
+              {/* Visual Timeline */}
+              {formData.phases && formData.phases.length > 0 ? (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700" />
+                  
+                  <div className="space-y-1">
+                    {formData.phases.map((phase, idx) => {
+                      const phaseColors = {
+                        NOT_STARTED: 'bg-slate-300 dark:bg-slate-600',
+                        IN_PROGRESS: 'bg-amber-500',
+                        COMPLETED: 'bg-emerald-500',
+                      };
+                      const phaseIcons = {
+                        NOT_STARTED: '○',
+                        IN_PROGRESS: '◐',
+                        COMPLETED: '●',
+                      };
+                      return (
+                        <div key={phase.id} className="relative flex items-start group">
+                          {/* Timeline dot */}
+                          <div className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${phaseColors[phase.status]}`}>
+                            {phase.status === 'COMPLETED' ? <Check size={20} /> : idx + 1}
+                          </div>
+                          
+                          {/* Phase card */}
+                          <div className="ml-4 flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-bold text-slate-800 dark:text-white text-sm">{phase.label}</h4>
+                                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  phase.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                  phase.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                  'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                                }`}>
+                                  {phase.status === 'COMPLETED' ? 'Terminée' : phase.status === 'IN_PROGRESS' ? 'En cours' : 'Non démarrée'}
+                                </span>
+                                {phase.notes && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{phase.notes}</p>}
+                              </div>
+                              
+                              {/* Phase controls */}
+                              <div className="flex items-center space-x-2 ml-4">
+                                <select
+                                  value={phase.status}
+                                  onChange={(e) => {
+                                    const newPhases = [...(formData.phases || [])];
+                                    newPhases[idx] = { ...newPhases[idx], status: e.target.value as ProjectPhase['status'], completionPercent: e.target.value === 'COMPLETED' ? 100 : e.target.value === 'IN_PROGRESS' ? 50 : 0 };
+                                    const updated = { ...formData, phases: newPhases };
+                                    setFormData(updated);
+                                    onSave(updated);
+                                  }}
+                                  className="text-xs border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                                >
+                                  <option value="NOT_STARTED">Non démarrée</option>
+                                  <option value="IN_PROGRESS">En cours</option>
+                                  <option value="COMPLETED">Terminée</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            {/* Progress bar */}
+                            <div className="mt-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      phase.status === 'COMPLETED' ? 'bg-emerald-500' :
+                                      phase.status === 'IN_PROGRESS' ? 'bg-amber-500' :
+                                      'bg-slate-300'
+                                    }`}
+                                    style={{ width: `${phase.completionPercent}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-mono text-slate-500 dark:text-slate-400 w-10 text-right">{phase.completionPercent}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={phase.completionPercent}
+                                onChange={(e) => {
+                                  const pct = parseInt(e.target.value);
+                                  const newPhases = [...(formData.phases || [])];
+                                  newPhases[idx] = {
+                                    ...newPhases[idx],
+                                    completionPercent: pct,
+                                    status: pct === 100 ? 'COMPLETED' : pct > 0 ? 'IN_PROGRESS' : 'NOT_STARTED',
+                                  };
+                                  const updated = { ...formData, phases: newPhases };
+                                  setFormData(updated);
+                                  onSave(updated);
+                                }}
+                                className="w-full h-1 mt-1 accent-emerald-600"
+                              />
+                            </div>
+                            
+                            {/* Date fields */}
+                            <div className="mt-2 flex space-x-3">
+                              <div className="flex-1">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">Début</label>
+                                <input
+                                  type="date"
+                                  value={phase.startDate || ''}
+                                  onChange={(e) => {
+                                    const newPhases = [...(formData.phases || [])];
+                                    newPhases[idx] = { ...newPhases[idx], startDate: e.target.value };
+                                    const updated = { ...formData, phases: newPhases };
+                                    setFormData(updated);
+                                    onSave(updated);
+                                  }}
+                                  className="w-full text-xs border border-slate-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">Fin</label>
+                                <input
+                                  type="date"
+                                  value={phase.endDate || ''}
+                                  onChange={(e) => {
+                                    const newPhases = [...(formData.phases || [])];
+                                    newPhases[idx] = { ...newPhases[idx], endDate: e.target.value };
+                                    const updated = { ...formData, phases: newPhases };
+                                    setFormData(updated);
+                                    onSave(updated);
+                                  }}
+                                  className="w-full text-xs border border-slate-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Overall progress summary */}
+                  <div className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Progression globale du chantier</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          {formData.phases.filter(p => p.status === 'COMPLETED').length} / {formData.phases.length} phases terminées
+                        </p>
+                      </div>
+                      <div className="text-3xl font-black text-emerald-700 dark:text-emerald-400">
+                        {formData.phases.length > 0 ? Math.round(formData.phases.reduce((sum, p) => sum + p.completionPercent, 0) / formData.phases.length) : 0}%
+                      </div>
+                    </div>
+                    <div className="mt-2 bg-emerald-200 dark:bg-emerald-800 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                        style={{ width: `${formData.phases.length > 0 ? Math.round(formData.phases.reduce((sum, p) => sum + p.completionPercent, 0) / formData.phases.length) : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-16 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                  <Layers size={48} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">Aucune phase définie</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Cliquez sur "Initialiser les phases" pour créer la timeline de rénovation</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========== MATÉRIAUX TAB ========== */}
+          {activeTab === 'Materiaux' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className={sectionTitleClass}>
+                  <Package size={18} className="mr-2" /> Suivi des Matériaux
+                </h3>
+                <button
+                  onClick={() => {
+                    const newMaterial: MaterialItem = {
+                      id: `mat_${Date.now()}`,
+                      name: '',
+                      quantity: 1,
+                      unit: 'unité',
+                      unitPrice: 0,
+                      ordered: false,
+                      delivered: false,
+                    };
+                    const updated = { ...formData, materials: [...(formData.materials || []), newMaterial] };
+                    setFormData(updated);
+                    setSaveStatus('modified');
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm"
+                >
+                  <Plus size={16} className="inline mr-1" /> Ajouter un matériau
+                </button>
+              </div>
+
+              {/* Material Stats Summary */}
+              {formData.materials && formData.materials.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Total Articles</p>
+                    <p className="text-2xl font-black text-blue-800 dark:text-blue-300">{formData.materials.length}</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase">Commandés</p>
+                    <p className="text-2xl font-black text-amber-800 dark:text-amber-300">{formData.materials.filter(m => m.ordered).length}</p>
+                  </div>
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Livrés</p>
+                    <p className="text-2xl font-black text-emerald-800 dark:text-emerald-300">{formData.materials.filter(m => m.delivered).length}</p>
+                  </div>
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+                    <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase">Coût total</p>
+                    <p className="text-2xl font-black text-purple-800 dark:text-purple-300">
+                      {formData.materials.reduce((sum, m) => sum + (m.quantity * m.unitPrice), 0).toLocaleString('fr-FR')} €
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Material Table */}
+              {formData.materials && formData.materials.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700">
+                        <th className="text-left py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Matériau</th>
+                        <th className="text-left py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Fournisseur</th>
+                        <th className="text-left py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Réf.</th>
+                        <th className="text-right py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qté</th>
+                        <th className="text-left py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Unité</th>
+                        <th className="text-right py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Prix unit.</th>
+                        <th className="text-right py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Total</th>
+                        <th className="text-center py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Commandé</th>
+                        <th className="text-center py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Livré</th>
+                        <th className="text-center py-3 px-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.materials.map((mat, idx) => (
+                        <tr key={mat.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={mat.name}
+                              placeholder="Nom du matériau"
+                              onChange={(e) => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], name: e.target.value };
+                                setFormData({ ...formData, materials: newMats });
+                                setSaveStatus('modified');
+                              }}
+                              className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none text-sm py-1 text-slate-800 dark:text-white"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={mat.supplier || ''}
+                              placeholder="—"
+                              onChange={(e) => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], supplier: e.target.value };
+                                setFormData({ ...formData, materials: newMats });
+                                setSaveStatus('modified');
+                              }}
+                              className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none text-sm py-1 text-slate-800 dark:text-white"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={mat.reference || ''}
+                              placeholder="—"
+                              onChange={(e) => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], reference: e.target.value };
+                                setFormData({ ...formData, materials: newMats });
+                                setSaveStatus('modified');
+                              }}
+                              className="w-24 bg-transparent border-0 border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none text-sm py-1 text-slate-800 dark:text-white"
+                            />
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            <input
+                              type="number"
+                              value={mat.quantity}
+                              min="0"
+                              step="0.01"
+                              onChange={(e) => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], quantity: parseFloat(e.target.value) || 0 };
+                                setFormData({ ...formData, materials: newMats });
+                                setSaveStatus('modified');
+                              }}
+                              className="w-20 bg-transparent border-0 border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none text-sm py-1 text-right text-slate-800 dark:text-white"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <select
+                              value={mat.unit}
+                              onChange={(e) => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], unit: e.target.value };
+                                setFormData({ ...formData, materials: newMats });
+                                setSaveStatus('modified');
+                              }}
+                              className="bg-transparent border-0 text-sm text-slate-800 dark:text-white outline-none"
+                            >
+                              <option value="unité">unité</option>
+                              <option value="m²">m²</option>
+                              <option value="ml">ml</option>
+                              <option value="kg">kg</option>
+                              <option value="L">L</option>
+                              <option value="lot">lot</option>
+                            </select>
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            <input
+                              type="number"
+                              value={mat.unitPrice}
+                              min="0"
+                              step="0.01"
+                              onChange={(e) => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], unitPrice: parseFloat(e.target.value) || 0 };
+                                setFormData({ ...formData, materials: newMats });
+                                setSaveStatus('modified');
+                              }}
+                              className="w-24 bg-transparent border-0 border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none text-sm py-1 text-right text-slate-800 dark:text-white"
+                            />
+                          </td>
+                          <td className="py-2 px-2 text-right font-bold text-slate-800 dark:text-white">
+                            {(mat.quantity * mat.unitPrice).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <button
+                              onClick={() => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], ordered: !newMats[idx].ordered };
+                                const updated = { ...formData, materials: newMats };
+                                setFormData(updated);
+                                onSave(updated);
+                              }}
+                              className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${mat.ordered ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 dark:border-slate-600'}`}
+                            >
+                              {mat.ordered && <Check size={14} />}
+                            </button>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <button
+                              onClick={() => {
+                                const newMats = [...(formData.materials || [])];
+                                newMats[idx] = { ...newMats[idx], delivered: !newMats[idx].delivered };
+                                const updated = { ...formData, materials: newMats };
+                                setFormData(updated);
+                                onSave(updated);
+                              }}
+                              className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${mat.delivered ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'}`}
+                            >
+                              {mat.delivered && <Check size={14} />}
+                            </button>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <button
+                              onClick={() => {
+                                const newMats = (formData.materials || []).filter(m => m.id !== mat.id);
+                                const updated = { ...formData, materials: newMats };
+                                setFormData(updated);
+                                onSave(updated);
+                              }}
+                              className="text-red-400 hover:text-red-600 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-slate-300 dark:border-slate-600">
+                        <td colSpan={6} className="py-3 px-2 text-right font-bold text-slate-800 dark:text-white uppercase text-xs">Total Matériaux HT</td>
+                        <td className="py-3 px-2 text-right font-black text-lg text-emerald-700 dark:text-emerald-400">
+                          {(formData.materials || []).reduce((sum, m) => sum + (m.quantity * m.unitPrice), 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+                        </td>
+                        <td colSpan={3} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-16 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                  <Package size={48} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">Aucun matériau ajouté</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Utilisez le bouton "Ajouter un matériau" pour gérer vos approvisionnements</p>
+                </div>
+              )}
+              
+              {/* Save reminder */}
+              {saveStatus === 'modified' && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => { onSave(formData); setSaveStatus('saved'); }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-sm"
+                  >
+                    <Save size={16} className="inline mr-2" /> Sauvegarder les matériaux
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========== BUDGET TRACKER TAB ========== */}
+          {activeTab === 'Budget' && (
+            <div className="space-y-6">
+              <h3 className={sectionTitleClass}>
+                <TrendingUp size={18} className="mr-2" /> Suivi Budgétaire
+              </h3>
+
+              {/* Budget Overview Cards */}
+              {(() => {
+                const estimatedBudget = formData.budget || 0;
+                const materialsCost = (formData.materials || []).reduce((sum, m) => sum + (m.quantity * m.unitPrice), 0);
+                const expensesCost = projectExpenses.reduce((sum, e) => sum + e.amount, 0);
+                const bdcCost = (formData.purchaseOrders || []).reduce((sum, b) => sum + b.amountHT, 0);
+                const totalActual = materialsCost + expensesCost + bdcCost;
+                const remaining = estimatedBudget - totalActual;
+                const budgetPct = estimatedBudget > 0 ? Math.min(100, Math.round((totalActual / estimatedBudget) * 100)) : 0;
+                const isOverBudget = remaining < 0;
+
+                return (
+                  <>
+                    {/* Main budget bar */}
+                    <div className={`rounded-2xl p-6 border-2 ${isOverBudget ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'}`}>
+                      <div className="flex justify-between items-end mb-4">
+                        <div>
+                          <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Budget Estimé</p>
+                          <p className="text-3xl font-black text-slate-800 dark:text-white">{estimatedBudget.toLocaleString('fr-FR')} €</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Dépensé</p>
+                          <p className={`text-3xl font-black ${isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                            {totalActual.toLocaleString('fr-FR')} €
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${isOverBudget ? 'bg-red-500' : budgetPct > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min(100, budgetPct)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{budgetPct}% utilisé</span>
+                        <span className={`text-xs font-bold ${isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {isOverBudget ? 'Dépassement: ' : 'Restant: '}{Math.abs(remaining).toLocaleString('fr-FR')} €
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cost breakdown */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-bold uppercase text-purple-600 dark:text-purple-400">Matériaux</span>
+                          <Package size={18} className="text-purple-400" />
+                        </div>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">{materialsCost.toLocaleString('fr-FR')} €</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{(formData.materials || []).length} articles</p>
+                        {estimatedBudget > 0 && (
+                          <div className="mt-2 bg-purple-100 dark:bg-purple-900/30 rounded-full h-1.5">
+                            <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(100, (materialsCost / estimatedBudget) * 100)}%` }} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-bold uppercase text-blue-600 dark:text-blue-400">Sous-traitance</span>
+                          <Wrench size={18} className="text-blue-400" />
+                        </div>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">{bdcCost.toLocaleString('fr-FR')} €</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{(formData.purchaseOrders || []).length} bons de commande</p>
+                        {estimatedBudget > 0 && (
+                          <div className="mt-2 bg-blue-100 dark:bg-blue-900/30 rounded-full h-1.5">
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (bdcCost / estimatedBudget) * 100)}%` }} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-bold uppercase text-amber-600 dark:text-amber-400">Dépenses directes</span>
+                          <Euro size={18} className="text-amber-400" />
+                        </div>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">{expensesCost.toLocaleString('fr-FR')} €</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{projectExpenses.length} dépenses</p>
+                        {estimatedBudget > 0 && (
+                          <div className="mt-2 bg-amber-100 dark:bg-amber-900/30 rounded-full h-1.5">
+                            <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, (expensesCost / estimatedBudget) * 100)}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expense list for this project */}
+                    {projectExpenses.length > 0 && (
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-3 flex items-center">
+                          <Euro size={14} className="mr-2" /> Détail des dépenses liées à ce chantier
+                        </h4>
+                        <div className="space-y-2">
+                          {projectExpenses.slice(0, 10).map((exp) => (
+                            <div key={exp.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-lg px-4 py-2 border border-slate-100 dark:border-slate-700">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">{exp.date}</span>
+                                <span className="text-sm font-medium text-slate-800 dark:text-white">{exp.merchant}</span>
+                                <span className="text-xs px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-slate-600 dark:text-slate-400">{exp.category}</span>
+                              </div>
+                              <span className="font-bold text-slate-800 dark:text-white">{exp.amount.toLocaleString('fr-FR')} €</span>
+                            </div>
+                          ))}
+                          {projectExpenses.length > 10 && (
+                            <p className="text-xs text-center text-slate-500 dark:text-slate-400">+ {projectExpenses.length - 10} autres dépenses</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Edit budget */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                      <label className={labelClass}>Budget estimé du chantier (€ HT)</label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="number"
+                          placeholder="Ex: 25000"
+                          value={formData.budget || ''}
+                          onChange={(e) => {
+                            setFormData({ ...formData, budget: parseFloat(e.target.value) || 0 });
+                            setSaveStatus('modified');
+                          }}
+                          className={inputClass + ' max-w-xs'}
+                        />
+                        <span className="text-slate-500 dark:text-slate-400 text-sm">€ HT</span>
+                        {saveStatus === 'modified' && (
+                          <button
+                            onClick={() => { onSave(formData); setSaveStatus('saved'); }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold"
+                          >
+                            <Save size={14} className="inline mr-1" /> Enregistrer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 

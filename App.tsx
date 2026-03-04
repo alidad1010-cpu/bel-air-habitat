@@ -1655,6 +1655,7 @@ const App: React.FC = () => {
             onProjectClick={handleProjectSelect}
             currentUser={currentUser}
             onUpdateProject={updateProject}
+            employees={employees}
           />
         );
       case 'projects':
@@ -1792,6 +1793,7 @@ const App: React.FC = () => {
             onAddExpense={handleAddExpense}
             onUpdateExpense={handleUpdateExpense}
             onDeleteExpense={handleDeleteExpense}
+            projects={projects}
           />
         );
       case 'prospection':

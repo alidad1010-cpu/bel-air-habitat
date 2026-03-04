@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, MoreVertical, Phone, Mail, MapPin, DollarSign, Calendar, Mic, Sparkles, FileText, Upload, X, Trash2 } from 'lucide-react';
+import { Plus, Search, MoreVertical, Phone, Mail, MapPin, DollarSign, Calendar, Mic, Sparkles, FileText, Upload, X, Trash2, Flame, Thermometer, Snowflake, Clock, AlertCircle, MessageSquare } from 'lucide-react';
 import { Prospect, ProspectStatus, ProspectNote } from '../types';
 import { analyzeProspectNote, parseProspectList } from '../services/geminiService';
 
@@ -23,12 +23,91 @@ const COLUMNS = [
     { id: ProspectStatus.LOST, title: 'Perdu', color: 'border-red-500', bgHeader: 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300' },
 ];
 
+// Lead scoring function - computes score based on estimate, recency, notes, status
+function computeLeadScore(prospect: Prospect): { score: number; label: 'HOT' | 'WARM' | 'COLD'; color: string; icon: typeof Flame; reason: string } {
+    let score = 0;
+    const reasons: string[] = [];
+    
+    // 1. Estimated amount (max 30 pts)
+    if (prospect.estimatedAmount) {
+        if (prospect.estimatedAmount >= 20000) { score += 30; reasons.push('Budget élevé'); }
+        else if (prospect.estimatedAmount >= 10000) { score += 20; reasons.push('Budget moyen'); }
+        else if (prospect.estimatedAmount >= 5000) { score += 10; reasons.push('Petit budget'); }
+        else { score += 5; }
+    }
+    
+    // 2. Interaction recency (max 25 pts)
+    const daysSinceInteraction = prospect.lastInteraction
+        ? Math.floor((Date.now() - prospect.lastInteraction) / (1000 * 60 * 60 * 24))
+        : 999;
+    if (daysSinceInteraction <= 3) { score += 25; reasons.push('Contact récent'); }
+    else if (daysSinceInteraction <= 7) { score += 20; reasons.push('Contact < 7j'); }
+    else if (daysSinceInteraction <= 14) { score += 10; }
+    else if (daysSinceInteraction <= 30) { score += 5; }
+    else { reasons.push('Pas de contact récent'); }
+    
+    // 3. Status progression (max 25 pts)
+    if (prospect.status === ProspectStatus.NEGOTIATION) { score += 25; reasons.push('En négociation'); }
+    else if (prospect.status === ProspectStatus.OFFER_SENT) { score += 20; reasons.push('Offre envoyée'); }
+    else if (prospect.status === ProspectStatus.CONTACTED) { score += 15; }
+    else if (prospect.status === ProspectStatus.NEW) { score += 5; }
+    
+    // 4. Notes frequency / engagement (max 20 pts)
+    const noteCount = prospect.notes?.length || 0;
+    if (noteCount >= 5) { score += 20; reasons.push(`${noteCount} notes`); }
+    else if (noteCount >= 3) { score += 15; }
+    else if (noteCount >= 1) { score += 10; }
+    
+    // 5. Has next action scheduled (+bonus)
+    if (prospect.nextActionDate) {
+        const nextDate = new Date(prospect.nextActionDate);
+        if (nextDate >= new Date()) { score += 5; reasons.push('Relance planifiée'); }
+    }
+    
+    // Classify
+    if (score >= 60) return { score, label: 'HOT', color: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800', icon: Flame, reason: reasons.slice(0, 2).join(', ') };
+    if (score >= 35) return { score, label: 'WARM', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800', icon: Thermometer, reason: reasons.slice(0, 2).join(', ') };
+    return { score, label: 'COLD', color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800', icon: Snowflake, reason: reasons.slice(0, 2).join(', ') };
+}
+
+// Generate follow-up suggestion
+function getFollowUpSuggestion(prospect: Prospect): string | null {
+    const now = Date.now();
+    const daysSinceInteraction = prospect.lastInteraction
+        ? Math.floor((now - prospect.lastInteraction) / (1000 * 60 * 60 * 24))
+        : null;
+    
+    if (prospect.status === ProspectStatus.WON || prospect.status === ProspectStatus.LOST) return null;
+    
+    if (!prospect.lastInteraction) return '📞 Premier contact à établir';
+    if (daysSinceInteraction && daysSinceInteraction > 14) return `⚠️ Relancer – Aucun contact depuis ${daysSinceInteraction}j`;
+    if (prospect.status === ProspectStatus.NEW && daysSinceInteraction && daysSinceInteraction > 3) return '📞 Appeler pour prise de contact';
+    if (prospect.status === ProspectStatus.CONTACTED && !prospect.estimatedAmount) return '💰 Qualifier le budget estimé';
+    if (prospect.status === ProspectStatus.OFFER_SENT && daysSinceInteraction && daysSinceInteraction > 5) return '📧 Relancer sur le devis envoyé';
+    if (prospect.status === ProspectStatus.NEGOTIATION) return '🤝 Préparer un argumentaire de clôture';
+    if (prospect.nextActionDate && new Date(prospect.nextActionDate) < new Date()) return '🔴 Relance en retard !';
+    return null;
+}
+
 const ProspectionPage: React.FC<ProspectionPageProps> = ({ prospects, onAddProspect, onUpdateProspect, onDeleteProspect, onConvertToClient }) => {
     const [searchQuery, setSearchQuery] = useState('');
     // OPTIMIZATION: Debounce search query
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [showLeadScoring, setShowLeadScoring] = useState(false);
+
+    // Compute lead scores for all active prospects
+    const leadScores = useMemo(() => {
+        return prospects
+            .filter(p => p.status !== ProspectStatus.WON && p.status !== ProspectStatus.LOST)
+            .map(p => ({ prospect: p, ...computeLeadScore(p), followUp: getFollowUpSuggestion(p) }))
+            .sort((a, b) => b.score - a.score);
+    }, [prospects]);
+
+    const hotCount = leadScores.filter(l => l.label === 'HOT').length;
+    const warmCount = leadScores.filter(l => l.label === 'WARM').length;
+    const coldCount = leadScores.filter(l => l.label === 'COLD').length;
 
     // DND Handler
     const onDragEnd = (result: DropResult) => {
@@ -104,6 +183,64 @@ const ProspectionPage: React.FC<ProspectionPageProps> = ({ prospects, onAddProsp
                 </div>
             </div>
 
+            {/* Lead Scoring Summary Bar */}
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    onClick={() => setShowLeadScoring(!showLeadScoring)}
+                    className="flex items-center space-x-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-sm font-bold"
+                >
+                    <Sparkles size={16} className="text-amber-500" />
+                    <span className="text-slate-700 dark:text-slate-300">Lead Scoring IA</span>
+                </button>
+                <div className="flex items-center space-x-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                        <Flame size={12} className="mr-1" /> {hotCount} HOT
+                    </span>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                        <Thermometer size={12} className="mr-1" /> {warmCount} WARM
+                    </span>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                        <Snowflake size={12} className="mr-1" /> {coldCount} COLD
+                    </span>
+                </div>
+            </div>
+
+            {/* Lead Scoring Panel (togglable) */}
+            {showLeadScoring && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-amber-50 to-red-50 dark:from-amber-900/10 dark:to-red-900/10">
+                        <h3 className="font-bold text-slate-800 dark:text-white text-sm flex items-center">
+                            <Sparkles size={16} className="mr-2 text-amber-500" /> Scoring IA & Suggestions de Relance
+                        </h3>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[300px] overflow-y-auto">
+                        {leadScores.map(({ prospect, score, label, color, icon: Icon, reason, followUp }) => (
+                            <div key={prospect.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors" onClick={() => setSelectedProspect(prospect)}>
+                                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${color}`}>
+                                        <Icon size={18} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-sm text-slate-800 dark:text-white truncate">{prospect.contactName}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{reason}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-4 flex-shrink-0 ml-4">
+                                    {followUp && (
+                                        <span className="hidden lg:inline-flex items-center text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg max-w-[250px] truncate">
+                                            {followUp}
+                                        </span>
+                                    )}
+                                    <div className={`px-3 py-1 rounded-lg text-xs font-black border ${color}`}>
+                                        {score}/100 {label}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Kanban Board */}
             <DragDropContext onDragEnd={onDragEnd}>
                 <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
@@ -162,11 +299,31 @@ const ProspectionPage: React.FC<ProspectionPageProps> = ({ prospects, onAddProsp
                                                                     )}
                                                                 </div>
 
+                                                                {/* Follow-up suggestion */}
+                                                                {(() => {
+                                                                    const fu = getFollowUpSuggestion(prospect);
+                                                                    return fu ? (
+                                                                        <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1 mb-2 truncate">
+                                                                            {fu}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
+
                                                                 <div className="flex items-center justify-between pt-2 border-t border-slate-50 dark:border-slate-800/50">
                                                                     <div className="flex items-center space-x-2">
                                                                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 shadow-inner">
                                                                             {prospect.contactName.charAt(0)}
                                                                         </div>
+                                                                        {/* Lead score badge */}
+                                                                        {(() => {
+                                                                            const ls = computeLeadScore(prospect);
+                                                                            const LsIcon = ls.icon;
+                                                                            return (
+                                                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black border ${ls.color}`}>
+                                                                                    <LsIcon size={9} className="mr-0.5" />{ls.label}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                     <div className="text-[10px] text-slate-400 font-mono">
                                                                         {new Date(prospect.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}

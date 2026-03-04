@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Plus, Upload, X, DollarSign, FileText, Receipt, TrendingUp, TrendingDown, PieChart, Printer, Edit2, Trash2 } from 'lucide-react';
-import { Expense, ExpenseCategory, ExpenseType } from '../types';
+import { Plus, Upload, X, DollarSign, FileText, Receipt, TrendingUp, TrendingDown, PieChart, Printer, Edit2, Trash2, Building2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Expense, ExpenseCategory, ExpenseType, Project } from '../types';
 import { uploadFileToCloud } from '../services/firebaseService';
 import { analyzeExpenseReceipt } from '../services/routellmService';
 import ErrorHandler from '../services/errorService';
@@ -18,9 +18,10 @@ interface ExpensesPageProps {
     onAddExpense: (expense: Expense) => Promise<void>;
     onUpdateExpense: (expense: Expense) => Promise<void>;
     onDeleteExpense: (id: string) => void;
+    projects?: Project[];
 }
 
-const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onUpdateExpense, onDeleteExpense }) => {
+const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onUpdateExpense, onDeleteExpense, projects = [] }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isUploading, setIsUploading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -537,6 +538,124 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                     </div>
                 </div>
             )}
+
+            {/* ========== BUDGET PAR CHANTIER SECTION ========== */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-soft overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                    <h3 className="font-bold text-slate-900 dark:text-white flex items-center text-sm uppercase tracking-wider">
+                        <Building2 size={16} className="mr-2 text-teal-500" /> Budget par Chantier
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Dépenses regroupées par projet / chantier</p>
+                </div>
+                <div className="p-4 space-y-3">
+                    {(() => {
+                        // Group expenses by projectId
+                        const byProject: Record<string, { expenses: Expense[]; total: number; projectName: string }> = {};
+                        const unassigned: Expense[] = [];
+                        
+                        expenses.forEach(exp => {
+                            if (exp.projectId) {
+                                if (!byProject[exp.projectId]) {
+                                    const proj = projects.find(p => p.id === exp.projectId);
+                                    byProject[exp.projectId] = {
+                                        expenses: [],
+                                        total: 0,
+                                        projectName: proj?.title || `Chantier ${exp.projectId.slice(0, 8)}`,
+                                    };
+                                }
+                                byProject[exp.projectId].expenses.push(exp);
+                                byProject[exp.projectId].total += exp.amount;
+                            } else {
+                                unassigned.push(exp);
+                            }
+                        });
+
+                        const sortedProjects = Object.entries(byProject).sort((a, b) => b[1].total - a[1].total);
+                        const grandTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+                        if (sortedProjects.length === 0) {
+                            return (
+                                <div className="text-center py-8 text-slate-400 dark:text-slate-500">
+                                    <Building2 size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">Aucune dépense n'est liée à un chantier</p>
+                                    <p className="text-xs mt-1">Associez les dépenses à des projets pour voir la répartition</p>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <>
+                                {sortedProjects.map(([projId, data]) => {
+                                    const pct = grandTotal > 0 ? (data.total / grandTotal) * 100 : 0;
+                                    return (
+                                        <div key={projId} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0">
+                                                        <Building2 size={18} className="text-teal-600 dark:text-teal-400" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-bold text-sm text-slate-800 dark:text-white truncate">{data.projectName}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">{data.expenses.length} dépense{data.expenses.length !== 1 ? 's' : ''}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right flex-shrink-0 ml-4">
+                                                    <p className="font-black text-lg text-slate-900 dark:text-white">{data.total.toLocaleString('fr-FR')} €</p>
+                                                    <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold">{pct.toFixed(1)}% du total</p>
+                                                </div>
+                                            </div>
+                                            {/* Mini bar */}
+                                            <div className="mt-3 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                                <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                                            </div>
+                                            {/* Category breakdown */}
+                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {Object.entries(
+                                                    data.expenses.reduce((acc, e) => {
+                                                        const cat = (e.category as string) || 'Autre';
+                                                        acc[cat] = (acc[cat] || 0) + e.amount;
+                                                        return acc;
+                                                    }, {} as Record<string, number>)
+                                                ).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([cat, amount]) => (
+                                                    <span key={cat} className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 bg-white dark:bg-slate-900 rounded-full border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
+                                                        {cat}: {amount.toLocaleString('fr-FR')} €
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                
+                                {/* Unassigned expenses */}
+                                {unassigned.length > 0 && (
+                                    <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                                                    <Receipt size={18} className="text-amber-600 dark:text-amber-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm text-slate-800 dark:text-white">Non assignées</p>
+                                                    <p className="text-xs text-amber-600 dark:text-amber-400">{unassigned.length} dépense{unassigned.length !== 1 ? 's' : ''} sans chantier</p>
+                                                </div>
+                                            </div>
+                                            <p className="font-black text-lg text-amber-700 dark:text-amber-400">
+                                                {unassigned.reduce((s, e) => s + e.amount, 0).toLocaleString('fr-FR')} €
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Grand Total */}
+                                <div className="flex justify-between items-center px-4 py-3 bg-teal-50 dark:bg-teal-900/20 rounded-xl border-2 border-teal-200 dark:border-teal-800">
+                                    <span className="font-bold text-sm text-teal-800 dark:text-teal-300 uppercase">Total toutes dépenses</span>
+                                    <span className="text-xl font-black text-teal-700 dark:text-teal-400">{grandTotal.toLocaleString('fr-FR')} €</span>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
+            </div>
 
         </div>
     );

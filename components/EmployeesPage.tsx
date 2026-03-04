@@ -33,6 +33,9 @@ import {
   Edit,
   UserCheck,
   UserX,
+  Wrench,
+  Check,
+  BarChart3,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -76,8 +79,62 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   onBulkUpdateAttendance,
   onBulkDeleteAttendance,
 }) => {
-  // MAIN TABS (REMOVED: EXPENSES at top level)
-  const [mainTab, setMainTab] = useState<'EMPLOYEES' | 'TIME'>('EMPLOYEES');
+  // MAIN TABS
+  const [mainTab, setMainTab] = useState<'EMPLOYEES' | 'TIME' | 'SKILLS'>('EMPLOYEES');
+
+  // SKILLS MATRIX - Renovation skills
+  const RENOVATION_SKILLS = [
+    'Plomberie', 'Électricité', 'Peinture', 'Carrelage', 'Maçonnerie',
+    'Menuiserie', 'Plâtrerie', 'Isolation', 'Couverture', 'Démolition',
+    'Sols / Parquet', 'Serrurerie', 'Vitrerie', 'Climatisation',
+  ] as const;
+
+  const [employeeSkills, setEmployeeSkills] = useState<Record<string, string[]>>(() => {
+    // Initialize from localStorage
+    try {
+      const saved = localStorage.getItem('bah_employee_skills');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleSkill = (empId: string, skill: string) => {
+    setEmployeeSkills(prev => {
+      const current = prev[empId] || [];
+      const updated = current.includes(skill)
+        ? current.filter(s => s !== skill)
+        : [...current, skill];
+      const newState = { ...prev, [empId]: updated };
+      localStorage.setItem('bah_employee_skills', JSON.stringify(newState));
+      return newState;
+    });
+  };
+
+  // Weekly hours summary per employee (for sparkline)
+  const weeklyHoursSummary = useMemo(() => {
+    const now = new Date();
+    const summaries: Record<string, { weekHours: number[]; totalThisWeek: number }> = {};
+    
+    employees.forEach(emp => {
+      const weeks: number[] = [];
+      for (let w = 3; w >= 0; w--) {
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay() - (w * 7) + 1);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        
+        const weekAttendances = attendances.filter(a => {
+          if (a.employeeId !== emp.id) return false;
+          const d = new Date(a.date);
+          return d >= weekStart && d <= weekEnd && a.status === AttendanceStatus.PRESENT;
+        });
+        weeks.push(weekAttendances.reduce((sum, a) => sum + (a.totalHours || 0), 0));
+      }
+      summaries[emp.id] = { weekHours: weeks, totalThisWeek: weeks[weeks.length - 1] };
+    });
+    return summaries;
+  }, [employees, attendances]);
 
   // --- EMPLOYEES STATE ---
   const [viewMode, setViewMode] = useState<'LIST' | 'FOREIGNERS'>('LIST');
@@ -697,7 +754,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              {mainTab === 'EMPLOYEES' ? 'Gestion des Salariés' : "Relevé d'Heures"}
+              {mainTab === 'EMPLOYEES' ? 'Gestion des Salariés' : mainTab === 'TIME' ? "Relevé d'Heures" : 'Matrice de Compétences'}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
               <span className="font-semibold text-teal-600 dark:text-teal-400">
@@ -723,6 +780,12 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mainTab === 'TIME' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
               >
                 Heures
+              </button>
+              <button
+                onClick={() => setMainTab('SKILLS')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mainTab === 'SKILLS' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                Compétences
               </button>
             </div>
 
@@ -1673,6 +1736,143 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
               >
                 Annuler
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- SKILLS MATRIX VIEW --- */}
+      {mainTab === 'SKILLS' && (
+        <div className="space-y-6">
+          {/* Skills Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-4 border border-teal-200 dark:border-teal-800">
+              <p className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase">Salariés actifs</p>
+              <p className="text-2xl font-black text-teal-800 dark:text-teal-300">{employees.filter(e => e.isActive).length}</p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+              <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Compétences couvertes</p>
+              <p className="text-2xl font-black text-blue-800 dark:text-blue-300">
+                {new Set(Object.values(employeeSkills).flat()).size} / {RENOVATION_SKILLS.length}
+              </p>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+              <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Moy. compétences/salarié</p>
+              <p className="text-2xl font-black text-amber-800 dark:text-amber-300">
+                {employees.filter(e => e.isActive).length > 0
+                  ? (Object.values(employeeSkills).reduce((sum, skills) => sum + skills.length, 0) / Math.max(1, employees.filter(e => e.isActive).length)).toFixed(1)
+                  : '0'}
+              </p>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Heures cette semaine</p>
+              <p className="text-2xl font-black text-purple-800 dark:text-purple-300">
+                {Object.values(weeklyHoursSummary).reduce((sum, s) => sum + s.totalThisWeek, 0).toFixed(0)}h
+              </p>
+            </div>
+          </div>
+
+          {/* Skills Matrix Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800">
+                    <th className="text-left py-3 px-4 font-bold text-slate-700 dark:text-slate-300 uppercase sticky left-0 bg-slate-50 dark:bg-slate-800 z-10 min-w-[180px]">
+                      Salarié
+                    </th>
+                    {RENOVATION_SKILLS.map(skill => (
+                      <th key={skill} className="py-3 px-2 font-bold text-slate-500 dark:text-slate-400 text-center min-w-[80px]">
+                        <span className="writing-mode-vertical block transform -rotate-45 origin-center whitespace-nowrap text-[10px]">{skill}</span>
+                      </th>
+                    ))}
+                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 text-center min-w-[120px]">
+                      Heures / Semaine
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.filter(e => e.isActive).map((emp) => {
+                    const empSkills = employeeSkills[emp.id] || [];
+                    const hours = weeklyHoursSummary[emp.id] || { weekHours: [0,0,0,0], totalThisWeek: 0 };
+                    const maxHours = Math.max(...hours.weekHours, 1);
+                    return (
+                      <tr key={emp.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 sticky left-0 bg-white dark:bg-slate-900 z-10">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-700 dark:text-teal-300 font-bold text-xs">
+                              {emp.firstName?.[0]}{emp.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800 dark:text-white text-sm">{emp.firstName} {emp.lastName}</p>
+                              <p className="text-slate-500 dark:text-slate-400">{emp.position}</p>
+                            </div>
+                          </div>
+                        </td>
+                        {RENOVATION_SKILLS.map(skill => (
+                          <td key={skill} className="text-center py-2 px-1">
+                            <button
+                              onClick={() => toggleSkill(emp.id, skill)}
+                              className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
+                                empSkills.includes(skill)
+                                  ? 'bg-teal-500 border-teal-500 text-white shadow-sm scale-105'
+                                  : 'border-slate-200 dark:border-slate-700 hover:border-teal-300 dark:hover:border-teal-600'
+                              }`}
+                            >
+                              {empSkills.includes(skill) && <Check size={14} />}
+                            </button>
+                          </td>
+                        ))}
+                        <td className="py-2 px-3">
+                          {/* Mini sparkline */}
+                          <div className="flex items-end space-x-1 h-8 justify-center">
+                            {hours.weekHours.map((h, i) => (
+                              <div
+                                key={i}
+                                className={`w-4 rounded-t transition-all ${i === hours.weekHours.length - 1 ? 'bg-teal-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                style={{ height: `${Math.max(4, (h / maxHours) * 32)}px` }}
+                                title={`Semaine -${hours.weekHours.length - 1 - i}: ${h.toFixed(1)}h`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1">{hours.totalThisWeek.toFixed(1)}h</p>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Skill Coverage Heatmap */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center text-sm uppercase tracking-wide">
+              <BarChart3 size={16} className="mr-2 text-teal-500" /> Couverture des compétences
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              {RENOVATION_SKILLS.map(skill => {
+                const count = employees.filter(e => e.isActive && (employeeSkills[e.id] || []).includes(skill)).length;
+                const total = employees.filter(e => e.isActive).length;
+                const pct = total > 0 ? (count / total) * 100 : 0;
+                return (
+                  <div key={skill} className={`rounded-xl p-3 border text-center transition-colors ${
+                    count === 0 ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' :
+                    pct < 30 ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800' :
+                    'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
+                  }`}>
+                    <Wrench size={16} className={`mx-auto mb-1 ${
+                      count === 0 ? 'text-red-400' : pct < 30 ? 'text-amber-400' : 'text-emerald-400'
+                    }`} />
+                    <p className="font-bold text-xs text-slate-800 dark:text-white">{skill}</p>
+                    <p className={`text-lg font-black mt-1 ${
+                      count === 0 ? 'text-red-600 dark:text-red-400' : pct < 30 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                    }`}>
+                      {count}
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">salarié{count !== 1 ? 's' : ''}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

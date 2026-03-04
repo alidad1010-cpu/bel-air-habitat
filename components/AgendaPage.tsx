@@ -1,20 +1,21 @@
 
 
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Briefcase, Globe, Plus, X, Search, Settings, Lock, ShieldCheck, AlertCircle } from 'lucide-react';
-import { Project, ProjectStatus, User, Appointment } from '../types';
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Briefcase, Globe, Plus, X, Search, Settings, Lock, ShieldCheck, AlertCircle, Users, Layers } from 'lucide-react';
+import { Project, ProjectStatus, User, Appointment, Employee } from '../types';
 
 interface AgendaPageProps {
   projects: Project[];
   onProjectClick: (project: Project) => void;
   currentUser?: User | null;
   onUpdateProject: (project: Project) => void;
+  employees?: Employee[];
 }
 
-const AgendaPage: React.FC<AgendaPageProps> = ({ projects, onProjectClick, currentUser, onUpdateProject }) => {
+const AgendaPage: React.FC<AgendaPageProps> = ({ projects, onProjectClick, currentUser, onUpdateProject, employees = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'APP' | 'GOOGLE'>('APP');
+  const [viewMode, setViewMode] = useState<'APP' | 'GOOGLE' | 'TEAM'>('APP');
   
   // Add Appointment Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -207,15 +208,21 @@ const AgendaPage: React.FC<AgendaPageProps> = ({ projects, onProjectClick, curre
                     <Plus size={18} className="mr-2"/> Nouveau RDV
                 </button>
                 <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex space-x-1">
-                    <button 
+                    <button
                         onClick={() => setViewMode('APP')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'APP' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-emerald-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'APP' ? 'bg-white dark:bg-slate-900 shadow text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200 hover:text-slate-700'}`}
                     >
                         <Briefcase size={16} className="inline mr-2"/> Interne
                     </button>
-                    <button 
+                    <button
+                        onClick={() => setViewMode('TEAM')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'TEAM' ? 'bg-white dark:bg-slate-900 shadow text-teal-600 dark:text-teal-400' : 'text-slate-700 dark:text-slate-200 hover:text-slate-700'}`}
+                    >
+                        <Users size={16} className="inline mr-2"/> Équipe
+                    </button>
+                    <button
                         onClick={() => setViewMode('GOOGLE')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'GOOGLE' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-blue-600 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'GOOGLE' ? 'bg-white dark:bg-slate-900 shadow text-blue-600 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200 hover:text-slate-700'}`}
                     >
                         <Globe size={16} className="inline mr-2"/> Agenda Perso
                     </button>
@@ -223,7 +230,178 @@ const AgendaPage: React.FC<AgendaPageProps> = ({ projects, onProjectClick, curre
             </div>
         </div>
 
-        {viewMode === 'GOOGLE' ? (
+        {viewMode === 'TEAM' ? (
+            /* ========== WEEKLY TEAM PLANNING VIEW ========== */
+            <div className="flex-1 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                {/* Week navigation */}
+                <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                    <button onClick={() => {
+                        const d = new Date(selectedDate);
+                        d.setDate(d.getDate() - 7);
+                        setSelectedDate(d);
+                    }} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">
+                        <ChevronLeft size={18} />
+                    </button>
+                    <h3 className="font-bold text-sm text-slate-800 dark:text-white">
+                        Semaine du {(() => {
+                            const d = new Date(selectedDate);
+                            const day = d.getDay();
+                            const monday = new Date(d);
+                            monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+                            const sunday = new Date(monday);
+                            sunday.setDate(monday.getDate() + 6);
+                            return `${monday.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au ${sunday.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                        })()}
+                    </h3>
+                    <button onClick={() => {
+                        const d = new Date(selectedDate);
+                        d.setDate(d.getDate() + 7);
+                        setSelectedDate(d);
+                    }} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">
+                        <ChevronRight size={18} />
+                    </button>
+                </div>
+
+                {/* Team Weekly Grid */}
+                <div className="overflow-x-auto">
+                    {(() => {
+                        // Calculate week days
+                        const d = new Date(selectedDate);
+                        const day = d.getDay();
+                        const monday = new Date(d);
+                        monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+                        const weekDays: Date[] = [];
+                        for (let i = 0; i < 7; i++) {
+                            const wd = new Date(monday);
+                            wd.setDate(monday.getDate() + i);
+                            weekDays.push(wd);
+                        }
+                        const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+                        // Get active projects with appointments this week
+                        const activeProjects = projects.filter(p =>
+                            p.status === ProjectStatus.IN_PROGRESS || p.status === ProjectStatus.VALIDATED
+                        );
+
+                        // Project color palette
+                        const projectColors = [
+                            'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700',
+                            'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
+                            'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+                            'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+                            'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700',
+                            'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700',
+                            'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700',
+                            'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
+                        ];
+
+                        return (
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-200 dark:border-slate-700">
+                                        <th className="text-left py-3 px-4 font-bold text-slate-600 dark:text-slate-400 uppercase min-w-[160px] sticky left-0 bg-white dark:bg-slate-900 z-10">
+                                            Chantier
+                                        </th>
+                                        {weekDays.map((wd, i) => {
+                                            const isToday = wd.toDateString() === new Date().toDateString();
+                                            const isWeekend = i >= 5;
+                                            return (
+                                                <th key={i} className={`py-3 px-2 text-center min-w-[100px] ${isToday ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''} ${isWeekend ? 'bg-slate-50 dark:bg-slate-800/30' : ''}`}>
+                                                    <span className="block text-slate-500 dark:text-slate-400 font-semibold">{dayNames[i]}</span>
+                                                    <span className={`block font-black text-lg ${isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-white'}`}>
+                                                        {wd.getDate()}
+                                                    </span>
+                                                </th>
+                                            );
+                                        })}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {activeProjects.map((proj, projIdx) => {
+                                        const colorClass = projectColors[projIdx % projectColors.length];
+                                        return (
+                                            <tr key={proj.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                <td className="py-2 px-4 sticky left-0 bg-white dark:bg-slate-900 z-10">
+                                                    <button
+                                                        onClick={() => onProjectClick(proj)}
+                                                        className="text-left hover:text-emerald-600 transition-colors"
+                                                    >
+                                                        <p className="font-bold text-slate-800 dark:text-white text-sm truncate max-w-[140px]">{proj.title}</p>
+                                                        <p className="text-slate-500 dark:text-slate-400 truncate max-w-[140px]">{proj.client?.name}</p>
+                                                    </button>
+                                                </td>
+                                                {weekDays.map((wd, i) => {
+                                                    const dateStr = wd.toISOString().split('T')[0];
+                                                    const isInRange = proj.startDate && proj.endDate
+                                                        ? dateStr >= proj.startDate && dateStr <= proj.endDate
+                                                        : false;
+                                                    const hasAppointment = proj.appointments?.some(a => a.date === dateStr);
+                                                    const apt = proj.appointments?.find(a => a.date === dateStr);
+                                                    const isWeekend = i >= 5;
+                                                    const isToday = wd.toDateString() === new Date().toDateString();
+
+                                                    return (
+                                                        <td key={i} className={`py-2 px-1 text-center ${isToday ? 'bg-emerald-50/50 dark:bg-emerald-900/5' : ''} ${isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : ''}`}>
+                                                            {isInRange && (
+                                                                <div className={`rounded-lg border px-1 py-1 ${colorClass}`}>
+                                                                    {hasAppointment && apt ? (
+                                                                        <div>
+                                                                            <p className="font-bold text-[10px] truncate">{apt.title}</p>
+                                                                            <p className="text-[9px] opacity-70">{apt.startTime}</p>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-[10px] font-medium opacity-60">chantier</div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {!isInRange && hasAppointment && apt && (
+                                                                <div className={`rounded-lg border px-1 py-1 ${colorClass}`}>
+                                                                    <p className="font-bold text-[10px] truncate">{apt.title}</p>
+                                                                    <p className="text-[9px] opacity-70">{apt.startTime}</p>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                    })}
+                                    {activeProjects.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                                                <Users size={32} className="mx-auto mb-2 opacity-50" />
+                                                <p className="text-sm font-medium">Aucun chantier actif cette semaine</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        );
+                    })()}
+                </div>
+
+                {/* Active Project Legend */}
+                {(() => {
+                    const activeProjects = projects.filter(p =>
+                        p.status === ProjectStatus.IN_PROGRESS || p.status === ProjectStatus.VALIDATED
+                    );
+                    const projectColors = [
+                        'bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500',
+                        'bg-rose-500', 'bg-cyan-500', 'bg-orange-500', 'bg-indigo-500',
+                    ];
+                    return activeProjects.length > 0 ? (
+                        <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3">
+                            {activeProjects.map((proj, i) => (
+                                <div key={proj.id} className="flex items-center space-x-2 text-xs">
+                                    <div className={`w-3 h-3 rounded-full ${projectColors[i % projectColors.length]}`} />
+                                    <span className="text-slate-600 dark:text-slate-400 font-medium">{proj.title}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null;
+                })()}
+            </div>
+        ) : viewMode === 'GOOGLE' ? (
             <div className="flex-1 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-2 h-[600px] relative">
                 {googleCalendarUrl ? (
                     <div className="w-full h-full flex flex-col">
