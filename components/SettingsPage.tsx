@@ -103,7 +103,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             }
             return newObj;
         };
-        try { return JSON.stringify(prune(data), null, 2); } catch (e) { return "{}"; }
+        try { return JSON.stringify(prune(data), null, 2); } catch { return "{}"; }
     };
 
     const handleExportData = () => {
@@ -126,7 +126,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
-        } catch (e) {
+        } catch {
             alert("Erreur lors de l'export.");
         }
     };
@@ -228,7 +228,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 });
             });
         }
-        window.location.reload(true);
+        window.location.reload();
     };
 
     return (
@@ -242,8 +242,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                             {theme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white">Apparence</h3>
-                            <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">
+                            <h3 className="font-semibold text-slate-800 dark:text-slate-100">Apparence</h3>
+                            <p className="text-sm text-slate-700 dark:text-slate-200">
                                 Mode {theme === 'dark' ? 'Sombre' : 'Clair'} activé
                             </p>
                         </div>
@@ -267,20 +267,20 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             {/* Main Settings Panel */}
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
                 <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-4 py-4 md:px-6 flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Paramètres</h2>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Paramètres</h2>
                 </div>
 
                 <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('data')}
-                        className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'data' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                        className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'data' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                     >
                         <Database size={18} className="mr-2" />
                         Données
                     </button>
                     <button
                         onClick={() => setActiveTab('diagnostic')}
-                        className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'diagnostic' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                        className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'diagnostic' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                     >
                         <RefreshCw size={18} className="mr-2" />
                         Diagnostic
@@ -289,14 +289,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         <>
                             <button
                                 onClick={() => setActiveTab('users')}
-                                className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'users' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                                className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'users' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                             >
                                 <User size={18} className="mr-2" />
                                 Accès & Équipe
                             </button>
                             <button
                                 onClick={() => setActiveTab('integrations')}
-                                className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'integrations' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                                className={`px-4 md:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap ${activeTab === 'integrations' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-transparent text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                             >
                                 <Link size={18} className="mr-2" />
                                 Intégrations
@@ -314,8 +314,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                     <Database size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Gestion des Données</h3>
-                                    <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white">
+                                    <h3 className="font-semibold text-slate-800 dark:text-slate-100">Gestion des Données</h3>
+                                    <p className="text-sm text-slate-700 dark:text-slate-200">
                                         Sauvegardez vos données localement pour éviter toute perte.
                                     </p>
                                 </div>
@@ -323,7 +323,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                             <div className="flex flex-wrap gap-4">
                                 <button
                                     onClick={handleExportData}
-                                    className="flex items-center bg-slate-800 hover:bg-slate-900 text-slate-900 dark:text-white dark:text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                    className="flex items-center bg-slate-800 hover:bg-slate-900 text-slate-900 dark:text-white px-4 py-2 rounded-lg font-medium transition-colors"
                                 >
                                     <Download size={18} className="mr-2" /> Exporter les données (JSON)
                                 </button>
@@ -338,8 +338,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                     <RefreshCw size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white">Diagnostic & Cache</h3>
-                                    <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">
+                                    <h3 className="font-semibold text-slate-800 dark:text-slate-100">Diagnostic & Cache</h3>
+                                    <p className="text-sm text-slate-700 dark:text-slate-200">
                                         Gérez les caches et diagnostiquez les problèmes de chargement.
                                     </p>
                                 </div>
@@ -348,7 +348,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                             {/* Build Info */}
                             {buildInfo && (
                                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white mb-2">Informations de Version</h4>
+                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-2">Informations de Version</h4>
                                     <div className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
                                         <p><span className="font-medium">Version:</span> {buildInfo.version}</p>
                                         <p><span className="font-medium">Dernière mise à jour:</span> {buildInfo.timestamp}</p>
@@ -358,7 +358,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
                             {/* Service Worker Status */}
                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                                <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white mb-3 flex items-center">
+                                <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-3 flex items-center">
                                     <AlertCircle size={18} className="mr-2" />
                                     Service Worker (PWA)
                                 </h4>
@@ -385,7 +385,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
                             {/* Cache Management */}
                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                                <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white mb-3">Gestion des Caches</h4>
+                                <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-3">Gestion des Caches</h4>
                                 <div className="space-y-3">
                                     <button
                                         onClick={handleClearLocalStorage}
@@ -453,8 +453,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         <div className="space-y-6">
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div>
-                                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Utilisateurs</h3>
-                                    <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white">Gérez les comptes d'accès.</p>
+                                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Utilisateurs</h3>
+                                    <p className="text-sm text-slate-700 dark:text-slate-200">Gérez les comptes d'accès.</p>
                                 </div>
                                 <button
                                     onClick={() => setIsAddUserOpen(true)}
@@ -467,7 +467,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
                             {isAddUserOpen && (
                                 <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 rounded-xl p-6 mb-6">
-                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-4">Nouvel Utilisateur</h4>
+                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-4">Nouvel Utilisateur</h4>
                                     <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div><label className={labelClass}>Identifiant</label><input required type="text" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} className={inputClass} placeholder="Identifiant" /></div>
                                         <div><label className={labelClass}>Nom Complet</label><input required type="text" value={newUser.fullName} onChange={e => setNewUser({ ...newUser, fullName: e.target.value })} className={inputClass} placeholder="Nom complet" /></div>
@@ -478,7 +478,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                             <option value="ADMIN">Administrateur</option>
                                         </select></div>
                                         <div className="md:col-span-2 flex justify-end space-x-3 mt-2">
-                                            <button type="button" onClick={() => setIsAddUserOpen(false)} className="px-4 py-2 text-slate-700 dark:text-slate-200 dark:text-white bg-slate-200 dark:bg-slate-600 rounded text-sm">Annuler</button>
+                                            <button type="button" onClick={() => setIsAddUserOpen(false)} className="px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-600 rounded text-sm">Annuler</button>
                                             <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded text-sm font-medium">Enregistrer</button>
                                         </div>
                                     </form>
@@ -487,7 +487,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
                             <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white font-medium border-b dark:border-slate-600">
+                                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium border-b dark:border-slate-600">
                                         <tr>
                                             <th className="px-4 py-3 whitespace-nowrap">Utilisateur</th>
                                             <th className="px-4 py-3 whitespace-nowrap">Rôle</th>
@@ -505,7 +505,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                                             {user.fullName.charAt(0)}
                                                         </div>
                                                         <div className="truncate max-w-[120px] md:max-w-none">
-                                                            <div className="font-medium text-slate-900 dark:text-white dark:text-white dark:text-white truncate">{user.fullName}</div>
+                                                            <div className="font-medium text-slate-900 dark:text-white truncate">{user.fullName}</div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -514,15 +514,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                                         {user.role}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-200 dark:text-white hidden md:table-cell">{user.email}</td>
+                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-200 hidden md:table-cell">{user.email}</td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center">
-                                                        <span className="font-mono text-xs text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white mr-2">
+                                                        <span className="font-mono text-xs text-slate-700 dark:text-slate-200 mr-2">
                                                             {visiblePasswordId === user.id ? user.password : '••••••'}
                                                         </span>
                                                         <button
                                                             onClick={() => setVisiblePasswordId(visiblePasswordId === user.id ? null : user.id)}
-                                                            className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+                                                            className="text-slate-700 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
                                                             title={visiblePasswordId === user.id ? "Masquer" : "Voir le mot de passe"}
                                                         >
                                                             {visiblePasswordId === user.id ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -531,7 +531,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
                                                     {user.id !== currentUser.id && (
-                                                        <button onClick={() => onDeleteUser(user.id)} className="p-1.5 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500">
+                                                        <button onClick={() => onDeleteUser(user.id)} className="p-1.5 text-slate-700 dark:text-slate-200 hover:text-red-500">
                                                             <Trash2 size={16} />
                                                         </button>
                                                     )}
@@ -547,8 +547,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     {activeTab === 'integrations' && isAdmin && (
                         <div className="max-w-3xl space-y-8 animate-in fade-in">
                             <div>
-                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Intégrations Externes</h3>
-                                <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white">Connectez vos services tiers pour automatiser votre activité.</p>
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Intégrations Externes</h3>
+                                <p className="text-sm text-slate-700 dark:text-slate-200">Connectez vos services tiers pour automatiser votre activité.</p>
                             </div>
 
                             <div className="bg-purple-50 dark:bg-purple-900/10 p-6 rounded-xl border-2 border-purple-200 dark:border-purple-800 shadow-sm relative overflow-hidden">
@@ -556,12 +556,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                     <Zap size={100} className="text-purple-600" />
                                 </div>
                                 <div className="flex items-start space-x-4 mb-4 relative z-10">
-                                    <div className="bg-purple-500 p-3 rounded-xl text-slate-900 dark:text-white dark:text-white shadow-lg shadow-purple-500/30">
+                                    <div className="bg-purple-500 p-3 rounded-xl text-slate-900 dark:text-white shadow-lg shadow-purple-500/30">
                                         <Zap size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white text-lg">Automatisation (Make.com)</h4>
-                                        <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white mt-1">
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Automatisation (Make.com)</h4>
+                                        <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
                                             Copiez votre lien Webhook ici pour activer l'envoi automatique vers Google Agenda et SMS.
                                         </p>
                                     </div>
@@ -577,26 +577,26 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                             placeholder="Ex: https://hook.eu1.make.com/..."
                                         />
                                     </div>
-                                    <p className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white mt-2">
+                                    <p className="text-[10px] text-slate-700 dark:text-slate-200 mt-2">
                                         Astuce : Vous pouvez coller le lien entier ou juste le code de fin.
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="bg-white dark:bg-slate-900 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+                            <div className="bg-white dark:bg-slate-900/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
                                 <div className="flex items-start space-x-4 mb-4">
                                     <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
                                         <Link size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Google Agenda (Visuel)</h4>
-                                        <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white dark:text-white mt-1">
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">Google Agenda (Visuel)</h4>
+                                        <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
                                             Pour voir votre planning directement dans l'application.
                                         </p>
                                     </div>
                                 </div>
                                 <div className="mt-4">
-                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white uppercase mb-2">URL d'intégration (src iframe)</label>
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase mb-2">URL d'intégration (src iframe)</label>
                                     <input
                                         type="text"
                                         value={integrations.googleCalendarUrl}
@@ -620,11 +620,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     )}
 
                     {activeTab === 'users' && !isAdmin && (
-                        <div className="flex flex-col items-center justify-center p-12 text-center text-slate-700 dark:text-slate-200 dark:text-white">
+                        <div className="flex flex-col items-center justify-center p-12 text-center text-slate-700 dark:text-slate-200">
                             <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded-full mb-4">
                                 <ShieldAlert size={48} className="text-slate-300 dark:text-white" />
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 dark:text-white">Accès Restreint</h3>
+                            <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200">Accès Restreint</h3>
                             <p className="max-w-md mt-2">
                                 La gestion des équipes est réservée aux administrateurs.
                             </p>

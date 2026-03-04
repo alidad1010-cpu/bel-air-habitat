@@ -45,12 +45,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
       <div
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80")',
+          backgroundImage: 'url("https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
-        <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-teal-900/70 backdrop-blur-[2px]"></div>
       </div>
 
       {/* Login Card */}
@@ -66,8 +66,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
                 className="h-12 w-auto object-contain"
               />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Espace Pro</h1>
-            <p className="text-slate-300 text-sm">Bienvenue sur votre portail sécurisé</p>
+            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Espace Rénovation</h1>
+            <p className="text-slate-300 text-sm">Gérez vos chantiers, clients et équipes</p>
           </div>
 
           {/* Form */}
@@ -146,7 +146,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
               </button>
 
               <div className="text-center mt-6">
-                <p className="text-xs text-slate-700 dark:text-slate-200 dark:text-white">
+                <p className="text-xs text-slate-700 dark:text-slate-200">
                   Accès réservé aux administrateurs et employés.
                 </p>
               </div>
@@ -183,7 +183,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin: _onLogin }) => {
               </a>
               <button
                 onClick={() => setShowForgotPassword(false)}
-                className="w-full py-3 text-sm font-bold text-slate-300 hover:text-slate-900 dark:text-white dark:text-white transition-colors"
+                className="w-full py-3 text-sm font-bold text-slate-300 hover:text-slate-900 dark:text-white transition-colors"
               >
                 Retour à la connexion
               </button>

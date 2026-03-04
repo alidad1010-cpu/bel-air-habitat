@@ -39,20 +39,36 @@ service cloud.firestore {
 
     // PROJECTS COLLECTION
     // Tous les utilisateurs authentifiés peuvent lire, mais seuls les propriétaires peuvent modifier
+    // Les clients peuvent uniquement lire leurs propres projets et mettre à jour le statut pour validation
+    // Les partenaires peuvent lire les projets où ils sont assignés et mettre à jour les bons de commande
     match /projects/{projectId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
+        (request.auth.token.role == 'CLIENT' && resource.data.client.userId == request.auth.uid) ||
+        (request.auth.token.role == 'PARTNER' &&
+         resource.data.purchaseOrders != null &&
+         resource.data.purchaseOrders.hasAny([request.auth.uid]))
+      );
       allow create: if isAuthenticated() && (
-        request.resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in request.resource.data) // Autoriser création sans createdBy pour compatibilité
+        request.resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in request.resource.data)
       );
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) || // Document existant sans createdBy
-        isAdmin()
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
+        isAdmin() ||
+        (request.auth.token.role == 'CLIENT' &&
+         resource.data.client.userId == request.auth.uid &&
+         request.resource.data.status == 'VALIDATED') ||
+        (request.auth.token.role == 'PARTNER' &&
+         resource.data.purchaseOrders != null &&
+         resource.data.purchaseOrders.hasAny([request.auth.uid]))
       );
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
     }
@@ -63,13 +79,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
     }
@@ -79,13 +95,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
     }
@@ -96,8 +112,8 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated(); // Autoriser création pour compatibilité
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
       allow delete: if isAdmin();
@@ -108,17 +124,17 @@ service cloud.firestore {
     match /expenses/{expenseId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (
-        request.resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in request.resource.data)
+        request.resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in request.resource.data)
       );
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
     }
@@ -128,13 +144,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
     }
@@ -144,13 +160,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        !('createdBy' in resource.data) ||
+        resource.data.createdByUserId == request.auth.uid ||
+        !('createdByUserId' in resource.data) ||
         isAdmin()
       );
     }
@@ -174,11 +190,34 @@ service cloud.firestore {
     }
 
     // NOTIFICATIONS COLLECTION
+    // Les utilisateurs peuvent lire leurs propres notifications
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // Permettre mise à jour pour marquer comme lu
-      allow delete: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // MESSAGES COLLECTION (Client-Team Communication)
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.senderId == request.auth.uid
+      );
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        isAdmin()
+      );
     }
 
     // COMPANY DATA

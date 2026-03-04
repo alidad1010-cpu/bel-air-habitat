@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
-import { useDebounce } from './hooks/useDebounce';
 import { useKeyboardShortcuts, StandardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './contexts/ThemeContext';
 import ErrorHandler from './services/errorService';
-import { auditLogService, AuditAction, AuditResource } from './services/auditLogService';
+import { auditLogService, AuditResource } from './services/auditLogService';
 // PWA registration - conditionally imported
 // Fix: Handle case where PWA plugin is disabled in production build
 let useRegisterSW: any;
@@ -21,38 +20,40 @@ try {
 }
 import {
   Plus,
-  ChevronLeft,
-  ChevronRight,
   Search,
   LayoutList,
   Kanban,
-  Loader2,
-  Wifi,
   WifiOff,
   RefreshCw,
   Menu,
-  RotateCw,
   AlertTriangle,
   X,
   Bell,
   Upload,
+  FileText,
+  Users,
+  Receipt,
+  Briefcase,
+  Send,
 } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import UserProfileModal from './components/UserProfileModal';
 import LoginPage from './components/LoginPage';
-import Breadcrumbs from './components/Breadcrumbs';
-import QuickActions from './components/QuickActions';
-import ImprovedSearchResults from './components/ImprovedSearchResults';
 import NotificationDropdown from './components/NotificationDropdown';
+import UniversalSearch from './components/UniversalSearch';
+import KeyboardShortcutsHelper from './components/KeyboardShortcutsHelper';
+import AIChatWidget from './components/AIChatWidget';
 import {
   Project,
   ProjectStatus,
+  ContactMethod,
   User,
   Client,
   Employee,
   CompanyAdministrativeData,
   Expense,
+  ExpenseType,
   AttendanceRecord,
   Prospect,
   ProspectStatus,
@@ -75,6 +76,9 @@ const AdminPage = lazy(() => import('./components/AdminPage'));
 const ExpensesPage = lazy(() => import('./components/ExpensesPage'));
 const ProspectionPage = lazy(() => import('./components/ProspectionPage'));
 const ImportProjectsModal = lazy(() => import('./components/ImportProjectsModal'));
+const ClientDashboard = lazy(() => import('./components/ClientDashboard'));
+const PartnerDashboard = lazy(() => import('./components/PartnerDashboard'));
+const SendMessageModal = lazy(() => import('./components/SendMessageModal'));
 
 // --- FIREBASE IMPORTS ---
 import {
@@ -261,14 +265,14 @@ const App: React.FC = () => {
 
   // PWA UPDATE LOGIC - AUTO UPDATE
   const {
-    offlineReady: [offlineReady, setOfflineReady],
+    offlineReady: [, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
-      console.log('SW Registered: ' + r);
+    onRegistered(_r: ServiceWorkerRegistration | undefined) {
+      console.log('SW Registered: ' + _r);
     },
-    onRegisterError(error) {
+    onRegisterError(error: Error) {
       console.log('SW registration error', error);
     },
   });
@@ -282,10 +286,11 @@ const App: React.FC = () => {
   }, [needRefresh, updateServiceWorker]);
 
   // Cleanup update state
-  const closeUpdate = () => {
+  const _closeUpdate = () => {
     setOfflineReady(false);
     setNeedRefresh(false);
   };
+  void _closeUpdate;
 
   // RESTORED: Shared Notes State (Array instead of string)
   const [globalNotes, setGlobalNotes] = useState<SharedNote[]>([]);
@@ -313,6 +318,8 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [prefillClient, setPrefillClient] = useState<Client | null>(null);
+  const [isQuickAddMenuOpen, setIsQuickAddMenuOpen] = useState(false);
+  const [isSendMessageModalOpen, setIsSendMessageModalOpen] = useState(false);
 
   // MOBILE HISTORY SYNC (SWIPE TO BACK)
   const isPopping = useRef(false);
@@ -358,17 +365,11 @@ const App: React.FC = () => {
       window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
     }
   }, [activeTab, selectedProject]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [globalSearchResults, setGlobalSearchResults] = useState<{
-    projects: Project[];
-    clients: Client[];
-    employees: Employee[];
-  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'ALL'>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const [isDarkMode] = useState(true);
+  void isDarkMode;
 
   const [projectViewMode, setProjectViewMode] = useState<'LIST' | 'KANBAN'>('LIST');
 
@@ -496,16 +497,137 @@ const App: React.FC = () => {
         if (savedProjects) {
           const parsed = JSON.parse(savedProjects);
           if (Array.isArray(parsed)) setProjects(parsed);
+        } else {
+          const demoProjects: Project[] = [
+            {
+              id: 'demo-1',
+              title: 'Rénovation Appartement Paris 15ème',
+              description: 'Rénovation complète d\'un appartement de 80m²',
+              status: 'EN_COURS' as ProjectStatus,
+              contactMethod: 'PHONE' as ContactMethod,
+              budget: 45000,
+              startDate: new Date().toISOString().split('T')[0],
+              client: {
+                id: 'demo-client-1',
+                name: 'Jean Dupont',
+                type: 'PARTICULIER',
+                email: 'jean.dupont@example.com',
+                phone: '06 12 34 56 78',
+                address: '123 Rue de la Paix, 75001 Paris'
+              },
+              priority: 'Haute' as 'Haute' | 'Moyenne' | 'Basse',
+              tasks: [],
+              appointments: [],
+              documents: [],
+              photos: [],
+              invoices: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              businessCode: 'DEMO-001',
+            },
+            {
+              id: 'demo-2',
+              title: 'Construction Maison Individuelle',
+              description: 'Construction d\'une maison de 120m²',
+              status: 'PLANIFIE' as ProjectStatus,
+              contactMethod: 'EMAIL' as ContactMethod,
+              budget: 250000,
+              startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              client: {
+                id: 'demo-client-2',
+                name: 'Marie Martin',
+                type: 'PARTICULIER',
+                email: 'marie.martin@example.com',
+                phone: '06 98 76 54 32',
+                address: '456 Avenue des Champs, 75008 Paris'
+              },
+              priority: 'Moyenne' as 'Haute' | 'Moyenne' | 'Basse',
+              tasks: [],
+              appointments: [],
+              documents: [],
+              photos: [],
+              invoices: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              businessCode: 'DEMO-002',
+            },
+          ];
+          setProjects(demoProjects);
+          localStorage.setItem('artisan-projects-backup', JSON.stringify(demoProjects));
         }
+
         const savedClients = localStorage.getItem('artisan-clients-backup');
         if (savedClients) {
           const parsed = JSON.parse(savedClients);
           if (Array.isArray(parsed)) setClients(parsed);
+        } else {
+          const demoClients: Client[] = [
+            {
+              id: 'demo-client-1',
+              name: 'Jean Dupont',
+              email: 'jean.dupont@example.com',
+              phone: '06 12 34 56 78',
+              address: '15 Rue de la Paix',
+              zipCode: '75015',
+              city: 'Paris',
+              type: 'PARTICULIER',
+            },
+            {
+              id: 'demo-client-2',
+              name: 'Marie Martin',
+              email: 'marie.martin@example.com',
+              phone: '06 98 76 54 32',
+              address: '42 Avenue des Champs',
+              zipCode: '75008',
+              city: 'Paris',
+              type: 'PARTICULIER',
+            },
+            {
+              id: 'demo-client-3',
+              name: 'Entreprise ABC',
+              email: 'contact@abc-entreprise.fr',
+              phone: '01 23 45 67 89',
+              address: '10 Boulevard Haussmann',
+              zipCode: '75009',
+              city: 'Paris',
+              type: 'ENTREPRISE',
+            },
+          ];
+          setClients(demoClients);
+          localStorage.setItem('artisan-clients-backup', JSON.stringify(demoClients));
         }
+
         const savedEmployees = localStorage.getItem('artisan-employees-backup');
         if (savedEmployees) {
           const parsed = JSON.parse(savedEmployees);
           if (Array.isArray(parsed)) setEmployees(parsed);
+        } else {
+          const demoEmployees: Employee[] = [
+            {
+              id: 'demo-emp-1',
+              firstName: 'Pierre',
+              lastName: 'Dubois',
+              email: 'pierre.dubois@example.com',
+              phone: '06 11 22 33 44',
+              position: 'Chef de chantier',
+              startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              nationality: 'Française',
+              isActive: true,
+            },
+            {
+              id: 'demo-emp-2',
+              firstName: 'Sophie',
+              lastName: 'Lefebvre',
+              email: 'sophie.lefebvre@example.com',
+              phone: '06 55 66 77 88',
+              position: 'Électricienne',
+              startDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              nationality: 'Française',
+              isActive: true,
+            },
+          ];
+          setEmployees(demoEmployees);
+          localStorage.setItem('artisan-employees-backup', JSON.stringify(demoEmployees));
         }
       } catch (e) {
         console.warn('Hydration failed', e);
@@ -543,6 +665,62 @@ const App: React.FC = () => {
     let unsubProspects: (() => void) | undefined;
     let unsubNotifications: (() => void) | undefined;
     let unsubPartners: (() => void) | undefined;
+
+    const checkAndCreateRecurringExpenses = async (allExpenses: Expense[]) => {
+      try {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+
+        const lastCheckKey = 'lastRecurringExpensesCheck';
+        const lastCheck = localStorage.getItem(lastCheckKey);
+
+        if (lastCheck === currentMonthKey) {
+          return;
+        }
+
+        const recurringExpenses = allExpenses.filter(e => e.type === ExpenseType.FIXED || e.isRecurring);
+
+        if (recurringExpenses.length === 0) {
+          localStorage.setItem(lastCheckKey, currentMonthKey);
+          return;
+        }
+
+        const currentMonthExpenses = allExpenses.filter(e => {
+          const expenseDate = new Date(e.date);
+          return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+        });
+
+        for (const recurringExpense of recurringExpenses) {
+          const sourceId = recurringExpense.recurringSourceId || recurringExpense.id;
+
+          const alreadyExists = currentMonthExpenses.some(e =>
+            e.recurringSourceId === sourceId ||
+            (e.id === sourceId && e.date.startsWith(currentMonthKey))
+          );
+
+          if (!alreadyExists) {
+            const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+            const newExpense: Expense = {
+              ...recurringExpense,
+              id: `${sourceId}_${currentMonthKey}`,
+              date: firstDayOfMonth.toISOString().split('T')[0],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              recurringSourceId: sourceId,
+            };
+
+            console.log(`🔄 Creating recurring expense for ${currentMonthKey}:`, newExpense.merchant);
+            await saveDocument('expenses', newExpense.id, sanitizeStorageData(newExpense));
+          }
+        }
+
+        localStorage.setItem(lastCheckKey, currentMonthKey);
+      } catch (error) {
+        console.error('Error checking recurring expenses:', error);
+      }
+    };
 
     const setupSubscriptions = async () => {
       // Unchanged: Projects
@@ -608,9 +786,13 @@ const App: React.FC = () => {
 
       // Unchanged: Expenses
       unsubExpenses = subscribeToCollection('expenses', (data) => {
+        console.log('🔔 Expenses subscription triggered, received data count:', Array.isArray(data) ? data.length : 0);
         const castData = Array.isArray(data) ? (data as Expense[]) : [];
         const cleanData = sanitizeStorageData(castData);
+        console.log('🔔 Setting expenses state with count:', cleanData.length);
         setExpenses(cleanData);
+
+        checkAndCreateRecurringExpenses(cleanData);
       });
 
       // Unchanged: Attendances
@@ -640,7 +822,7 @@ const App: React.FC = () => {
       );
 
       // Unchanged: Users
-      unsubUsers = subscribeToCollection('users', (data) => {
+      unsubUsers = subscribeToCollection('users', (data: any) => {
         const castData = Array.isArray(data) ? (data as User[]) : [];
         const cleanData = sanitizeStorageData(castData);
         setUsers(cleanData);
@@ -649,18 +831,18 @@ const App: React.FC = () => {
       // NEW: Team Messages Subscription (Fast Sync)
       unsubTeamMessages = subscribeToCollection(
         'team_messages',
-        (data) => {
-          const messages = data.map((d) => ({ ...d, id: d.id }) as SharedNote);
+        (data: any) => {
+          const messages = data.map((d: any) => ({ ...d, id: d.id }) as SharedNote);
           // Sort Descending (Newest first)
-          messages.sort((a, b) => b.createdAt - a.createdAt);
+          messages.sort((a: SharedNote, b: SharedNote) => b.createdAt - a.createdAt);
           setGlobalNotes(messages);
         },
         [orderBy('createdAt', 'desc'), limit(50)]
       );
 
       // UPDATED: Company Data (Admin Only, Legacy Notes Removed)
-      unsubCompany = subscribeToCollection('company', (data) => {
-        const adminDoc = data.find((d) => d.id === 'administrative');
+      unsubCompany = subscribeToCollection('company', (data: any) => {
+        const adminDoc = data.find((d: any) => d.id === 'administrative');
         if (adminDoc) {
           setAdminData({
             id: 'administrative',
@@ -696,50 +878,6 @@ const App: React.FC = () => {
     };
   }, [isHydrated, currentUser]);
 
-  // OPTIMIZATION: Debounce search query pour réduire les calculs
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
-  // OPTIMIZATION: Mémoriser la fonction de recherche globale
-  const handleGlobalSearch = useCallback((query: string) => {
-    if (!query || query.length < 2) {
-      setGlobalSearchResults(null);
-      return;
-    }
-    const lowerQuery = query.toLowerCase();
-
-    const matchedProjects = projects.filter(
-      (p) =>
-        p.title.toLowerCase().includes(lowerQuery) ||
-        p.client.name.toLowerCase().includes(lowerQuery) ||
-        p.id.toLowerCase().includes(lowerQuery) ||
-        p.description?.toLowerCase().includes(lowerQuery)
-    );
-
-    const matchedClients = clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(lowerQuery) ||
-        c.email?.toLowerCase().includes(lowerQuery) ||
-        c.phone?.toLowerCase().includes(lowerQuery)
-    );
-
-    const matchedEmployees = employees.filter(
-      (e) =>
-        (e.firstName + ' ' + e.lastName).toLowerCase().includes(lowerQuery) ||
-        e.email?.toLowerCase().includes(lowerQuery) ||
-        e.position.toLowerCase().includes(lowerQuery)
-    );
-
-    setGlobalSearchResults({
-      projects: matchedProjects,
-      clients: matchedClients,
-      employees: matchedEmployees,
-    });
-  }, [projects, clients, employees]);
-
-  useEffect(() => {
-    handleGlobalSearch(debouncedSearchQuery);
-  }, [debouncedSearchQuery, handleGlobalSearch]);
-
   // SYNC USER PROFILE: Ensure currentUser reflects the latest Firestore data
   useEffect(() => {
     if (currentUser && users.length > 0) {
@@ -767,11 +905,10 @@ const App: React.FC = () => {
     return filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [projects, statusFilter]);
 
-  const totalPages = Math.ceil(filteredAndSortedProjects.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const startIndex = (currentPage - 1) * 20;
   const paginatedProjects = useMemo(() => {
-    return filteredAndSortedProjects.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredAndSortedProjects, startIndex, itemsPerPage]);
+    return filteredAndSortedProjects.slice(startIndex, startIndex + 20);
+  }, [filteredAndSortedProjects, startIndex]);
 
   // OPTIMIZED LOGIN HANDLER: Corrected to trust Firebase result
   const handleLogin = useCallback((email: string, _password?: string) => {
@@ -808,9 +945,7 @@ const App: React.FC = () => {
     setActiveTab(tab);
     sessionStorage.setItem('lastActiveTab', tab);
     if (filter) setStatusFilter(filter);
-    setGlobalSearchResults(null);
     setSelectedProject(null);
-    setSearchQuery('');
     setIsSidebarOpen(false);
   }, []);
 
@@ -866,8 +1001,6 @@ const App: React.FC = () => {
         if (isModalOpen) setIsModalOpen(false);
         if (isProfileModalOpen) setIsProfileModalOpen(false);
         if (isImportProjectsModalOpen) setIsImportProjectsModalOpen(false);
-        setGlobalSearchResults(null);
-        setSearchQuery('');
       },
       description: 'Fermer les modales',
     },
@@ -879,13 +1012,17 @@ const App: React.FC = () => {
   });
 
   const addProject = useCallback(async (project: Project) => {
-    const cleanProject = sanitizeStorageData(project);
+    const projectWithMetadata = {
+      ...project,
+      createdByUserId: currentUser?.id || 'unknown',
+    };
+    const cleanProject = sanitizeStorageData(projectWithMetadata);
     setProjects((prev) => {
       const newProjects = [cleanProject, ...prev];
       safeLocalStorageSet('artisan-projects-backup', newProjects);
       return newProjects;
     });
-    setActiveTab('projects');
+    handleTabSwitch('projects');
     setStatusFilter(ProjectStatus.NEW);
     await saveDocument('projects', cleanProject.id, cleanProject);
     // Audit Log
@@ -909,10 +1046,11 @@ const App: React.FC = () => {
           ...cleanProject.client,
           id: Date.now().toString(),
           type: cleanProject.client.type || 'PARTICULIER', // Default type
+          createdByUserId: currentUser?.id || 'unknown',
         };
         const newClients = [...prevClients, newClient];
         safeLocalStorageSet('artisan-clients-backup', newClients);
-        
+
         // BUG FIX 2: Save client asynchronously after state update
         // Without await, local state updates immediately but Firestore save happens async
         // This can cause data sync issues if save fails or component unmounts
@@ -921,7 +1059,7 @@ const App: React.FC = () => {
           console.error('Failed to save new client:', error);
           ErrorHandler.handle(error, 'App - addProject - Client Save');
         });
-        
+
         return newClients;
       }
       return prevClients;
@@ -930,8 +1068,12 @@ const App: React.FC = () => {
 
   const handleBulkAddProjects = useCallback(
     async (newProjects: Project[]) => {
-      // 1. Sanitize Projects
-      const cleanProjects = newProjects.map((p) => sanitizeStorageData(p));
+      // 1. Add createdByUserId to Projects
+      const projectsWithMetadata = newProjects.map((p) => ({
+        ...p,
+        createdByUserId: p.createdByUserId || currentUser?.id || 'unknown',
+      }));
+      const cleanProjects = projectsWithMetadata.map((p) => sanitizeStorageData(p));
 
       // 2. Identify and Create NEW Clients
       const newClientsToSave: Client[] = [];
@@ -941,7 +1083,10 @@ const App: React.FC = () => {
         const alreadyQueued = newClientsToSave.some((c) => c.id === proj.client.id);
 
         if (!clientExists && !alreadyQueued) {
-          newClientsToSave.push(proj.client);
+          newClientsToSave.push({
+            ...proj.client,
+            createdByUserId: currentUser?.id || 'unknown',
+          });
         }
       }
 
@@ -966,7 +1111,7 @@ const App: React.FC = () => {
       });
 
       // Switch to projects tab
-      setActiveTab('projects');
+      handleTabSwitch('projects');
       setStatusFilter('ALL');
 
       // Save projects
@@ -974,7 +1119,7 @@ const App: React.FC = () => {
         await saveDocument('projects', proj.id, proj);
       }
     },
-    [clients]
+    [clients, currentUser]
   );
 
   const handleDuplicateProject = useCallback(
@@ -1069,8 +1214,12 @@ const App: React.FC = () => {
 
   const handleAddClient = useCallback(async (client: Client) => {
     const id = Date.now().toString();
-    const fullClient = { ...client, id };
-    const cleanClient = sanitizeStorageData(fullClient);
+    const clientWithMetadata = {
+      ...client,
+      id,
+      createdByUserId: currentUser?.id || 'unknown',
+    };
+    const cleanClient = sanitizeStorageData(clientWithMetadata);
     setClients((prev) => {
       const newClients = [...prev, cleanClient];
       safeLocalStorageSet('artisan-clients-backup', newClients);
@@ -1119,7 +1268,11 @@ const App: React.FC = () => {
   }, [currentUser, clients]);
 
   const handleAddEmployee = useCallback(async (emp: Employee) => {
-    const cleanEmp = sanitizeStorageData(emp);
+    const empWithMetadata = {
+      ...emp,
+      createdByUserId: currentUser?.id || 'unknown',
+    };
+    const cleanEmp = sanitizeStorageData(empWithMetadata);
     setEmployees((prev) => {
       const newEmps = [...prev, cleanEmp];
       safeLocalStorageSet('artisan-employees-backup', newEmps);
@@ -1198,27 +1351,90 @@ const App: React.FC = () => {
 
   // --- EXPENSE HANDLERS ---
   const handleAddExpense = useCallback(async (expense: Expense) => {
-    const clean = sanitizeStorageData(expense);
-    setExpenses((prev) => [...prev, clean]);
+    console.log('🔵 handleAddExpense called with:', expense);
+    const expenseWithMetadata = {
+      ...expense,
+      createdBy: currentUser?.fullName || currentUser?.username || 'Utilisateur inconnu',
+      createdByUserId: currentUser?.id || 'unknown',
+      createdAt: expense.createdAt || Date.now()
+    };
+    const clean = sanitizeStorageData(expenseWithMetadata);
+    console.log('🔵 Sanitized expense:', clean);
+    console.log('🔵 Current expenses count before add:', expenses.length);
+    setExpenses((prev) => {
+      const newExpenses = [...prev, clean];
+      console.log('🔵 New expenses count after add:', newExpenses.length);
+      return newExpenses;
+    });
+    console.log('🔵 Calling saveDocument...');
     await saveDocument('expenses', clean.id, clean);
-  }, []);
+    console.log('✅ Expense saved to database');
+  }, [expenses.length, currentUser]);
 
   const handleUpdateExpense = useCallback(async (expense: Expense) => {
+    console.log('🟡 handleUpdateExpense called with:', expense);
     const clean = sanitizeStorageData(expense);
+    console.log('🟡 Sanitized expense:', clean);
     setExpenses((prev) => prev.map((e) => (e.id === clean.id ? clean : e)));
+    console.log('🟡 Calling saveDocument...');
     await saveDocument('expenses', clean.id, clean);
+    console.log('✅ Expense updated in database');
   }, []);
 
   const handleDeleteExpense = useCallback(async (id: string) => {
-    if (window.confirm('Supprimer cette dépense ?')) {
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
-      await deleteDocument('expenses', id);
+    const expenseToDelete = expenses.find(e => e.id === id);
+
+    if (!expenseToDelete) {
+      return;
     }
-  }, []);
+
+    const isRecurring = expenseToDelete.isRecurring || expenseToDelete.type === ExpenseType.FIXED;
+    const sourceId = expenseToDelete.recurringSourceId || expenseToDelete.id;
+
+    if (isRecurring) {
+      const futureRecurringExpenses = expenses.filter(e => {
+        if (e.id === id) return false;
+        const expenseSourceId = e.recurringSourceId || e.id;
+        if (expenseSourceId !== sourceId) return false;
+        return new Date(e.date) > new Date(expenseToDelete.date);
+      });
+
+      if (futureRecurringExpenses.length > 0) {
+        const confirmMessage = `Cette dépense est récurrente. Voulez-vous aussi supprimer les ${futureRecurringExpenses.length} dépense(s) des mois suivants ?\n\nCliquez sur "OK" pour supprimer tout, ou "Annuler" pour supprimer uniquement ce mois.`;
+
+        if (window.confirm(confirmMessage)) {
+          const idsToDelete = [id, ...futureRecurringExpenses.map(e => e.id)];
+          setExpenses((prev) => prev.filter((e) => !idsToDelete.includes(e.id)));
+          for (const deleteId of idsToDelete) {
+            await deleteDocument('expenses', deleteId);
+          }
+        } else {
+          if (window.confirm('Supprimer uniquement cette dépense ?')) {
+            setExpenses((prev) => prev.filter((e) => e.id !== id));
+            await deleteDocument('expenses', id);
+          }
+        }
+      } else {
+        if (window.confirm('Supprimer cette dépense récurrente ?')) {
+          setExpenses((prev) => prev.filter((e) => e.id !== id));
+          await deleteDocument('expenses', id);
+        }
+      }
+    } else {
+      if (window.confirm('Supprimer cette dépense ?')) {
+        setExpenses((prev) => prev.filter((e) => e.id !== id));
+        await deleteDocument('expenses', id);
+      }
+    }
+  }, [expenses]);
 
   // --- ATTENDANCE HANDLERS ---
   const handleUpdateAttendance = useCallback(async (record: AttendanceRecord) => {
-    const clean = sanitizeStorageData(record);
+    const recordWithMetadata = {
+      ...record,
+      createdByUserId: record.createdByUserId || currentUser?.id || 'unknown',
+    };
+    const clean = sanitizeStorageData(recordWithMetadata);
     setAttendances((prev) => {
       const index = prev.findIndex((a) => a.id === clean.id);
       if (index >= 0) {
@@ -1229,10 +1445,14 @@ const App: React.FC = () => {
       return [...prev, clean];
     });
     await saveDocument('attendances', clean.id, clean);
-  }, []);
+  }, [currentUser]);
 
   const handleBulkUpdateAttendance = useCallback(async (records: AttendanceRecord[]) => {
-    const cleanRecords = records.map((r) => sanitizeStorageData(r));
+    const recordsWithMetadata = records.map((r) => ({
+      ...r,
+      createdByUserId: r.createdByUserId || currentUser?.id || 'unknown',
+    }));
+    const cleanRecords = recordsWithMetadata.map((r) => sanitizeStorageData(r));
     setAttendances((prev) => {
       const newMap = new Map(prev.map((p) => [p.id, p]));
       cleanRecords.forEach((r) => newMap.set(r.id, r));
@@ -1240,7 +1460,7 @@ const App: React.FC = () => {
     });
 
     await Promise.all(cleanRecords.map((r) => saveDocument('attendances', r.id, r)));
-  }, []);
+  }, [currentUser]);
 
   const handleBulkDeleteAttendance = useCallback(async (ids: string[]) => {
     setAttendances((prev) => prev.filter((a) => !ids.includes(a.id)));
@@ -1249,10 +1469,14 @@ const App: React.FC = () => {
 
   // --- PROSPECTION HANDLERS ---
   const handleAddProspect = useCallback(async (prospect: Prospect) => {
-    const clean = sanitizeStorageData(prospect);
+    const prospectWithMetadata = {
+      ...prospect,
+      createdByUserId: currentUser?.id || 'unknown',
+    };
+    const clean = sanitizeStorageData(prospectWithMetadata);
     setProspects((prev) => [...prev, clean]);
     await saveDocument('prospects', clean.id, clean);
-  }, []);
+  }, [currentUser]);
 
   const handleUpdateProspect = useCallback(async (prospect: Prospect) => {
     const clean = sanitizeStorageData(prospect);
@@ -1289,7 +1513,7 @@ const App: React.FC = () => {
 
         // 3. Navigate/Feedback
         alert('Client créé avec succès !');
-        setActiveTab('clients');
+        handleTabSwitch('clients');
       }
     },
     [handleAddClient, handleUpdateProspect]
@@ -1368,10 +1592,6 @@ const App: React.FC = () => {
     setIsModalOpen(true);
   }, []);
 
-  const handleManualRefresh = () => {
-    window.location.reload();
-  };
-
   // OPTIMIZED LOGIN HANDLER: Updates state immediately for instant feedback
 
   // if (!currentUser) return <LoginPage onLogin={handleLogin} />;
@@ -1379,6 +1599,14 @@ const App: React.FC = () => {
   if (!currentUser) return <LoginPage onLogin={handleLogin} />;
 
   const renderContent = () => {
+    if (currentUser?.role === 'CLIENT') {
+      return <ClientDashboard currentUser={currentUser} />;
+    }
+
+    if (currentUser?.role === 'PARTNER') {
+      return <PartnerDashboard currentUser={currentUser} />;
+    }
+
     if (selectedProject) {
       return (
         <ProjectDetail
@@ -1403,10 +1631,10 @@ const App: React.FC = () => {
                   setPrefillClient(null);
                   setIsModalOpen(true);
                 }}
-                className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition-all active:scale-95"
+                className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md shadow-teal-500/20 transition-all active:scale-95 text-sm"
               >
-                <Plus size={20} />
-                <span>Nouvelle Demande</span>
+                <Plus size={18} />
+                <span>Nouveau Chantier</span>
               </button>
             </div>
             <Dashboard
@@ -1594,68 +1822,370 @@ const App: React.FC = () => {
     }
   };
 
+
+
   return (
-    <div className="flex min-h-screen transition-colors pt-[40px] md:pt-0">
-      {/* ALERT BANNER (TOP) */}
-      {docAlerts && (
-        <div
-          className={`fixed top-0 left-0 w-full z-[10000] px-4 py-2 flex items-center justify-between text-sm font-bold shadow-lg animate-slide-in-from-top ${docAlerts.type === 'expired' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}
-        >
-          <div className="flex items-center mx-auto">
-            <AlertTriangle className="mr-2" size={18} />
-            <span>
-              {docAlerts.type === 'expired'
-                ? `ATTENTION: ${docAlerts.count} document(s) expiré(s) détectés !`
-                : `Info: ${docAlerts.count} document(s) expirent bientôt.`}
-            </span>
-            <button
-              onClick={() =>
-                setActiveTab(docAlerts.type === 'expired' ? 'partners' : 'administrative')
-              }
-              className="ml-4 underline hover:text-slate-200"
-            >
-              Vérifier maintenant
-            </button>
+    <div className="flex h-screen overflow-hidden bg-[var(--color-bg-primary)] ">
+      {/* COMPACT SIDEBAR - Icon Only */}
+      <aside className="hidden md:flex flex-col w-16 border-r-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f1419] shadow-2xl">
+        <div className="flex items-center justify-center h-16 border-b-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f1419]">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-white font-bold text-sm">
+            BH
           </div>
+        </div>
+
+        <nav className="flex-1 flex flex-col gap-1 p-2 overflow-y-auto scrollbar-thin bg-white dark:bg-[#0f1419]">
           <button
-            onClick={() => setDocAlerts(null)}
-            className="p-1 hover:bg-white dark:bg-slate-950/20 rounded"
+            onClick={() => handleTabSwitch('dashboard')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'dashboard'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Tableau de bord"
           >
-            <X size={16} />
+            <LayoutList size={20} />
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('projects')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'projects'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Dossiers"
+          >
+            <Kanban size={20} />
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('clients')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'clients'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Clients"
+          >
+            <Search size={20} />
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('tasks')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all relative ${
+              activeTab === 'tasks'
+                ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+            }`}
+            title="Tâches"
+          >
+            <Bell size={20} />
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+            )}
+          </button>
+
+          <div className="h-px bg-[var(--color-border)] my-2"></div>
+
+          <button
+            onClick={() => handleTabSwitch('agenda')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'agenda'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Agenda"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('prospection')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'prospection'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Prospection"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('partners')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'partners'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Partenaires"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <line x1="20" y1="8" x2="20" y2="14"></line>
+              <line x1="23" y1="11" x2="17" y2="11"></line>
+            </svg>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('employees')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'employees'
+                ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+            }`}
+            title="Salariés"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('expenses')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'expenses'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Dépenses"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('administrative')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'administrative'
+                ? 'bg-blue-50 dark:bg-blue-950 text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-[var(--color-text-primary)]'
+            }`}
+            title="Administratif"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </button>
+        </nav>
+
+        <div className="p-2 border-t bg-white dark:bg-[#0f1419] border-gray-200 dark:border-gray-800">
+          <button
+            onClick={() => handleTabSwitch('settings')}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all ${
+              activeTab === 'settings'
+                ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+            }`}
+            title="Paramètres"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6m8.66-15.66l-4.24 4.24m-4.24 4.24l-4.24 4.24M23 12h-6m-6 0H1m20.66 8.66l-4.24-4.24m-4.24-4.24l-4.24-4.24"></path>
+            </svg>
+          </button>
+
+          <button
+            onClick={() => setIsProfileModalOpen(true)}
+            className="w-12 h-12 flex items-center justify-center mt-2"
+          >
+            {currentUser.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt="Profil"
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center font-semibold text-xs">
+                {currentUser.customInitials || currentUser.fullName.charAt(0)}
+              </div>
+            )}
           </button>
         </div>
-      )}
+      </aside>
 
-      {/* OFFLINE BANNER */}
-      {!isOnline && (
-        <div className="fixed bottom-4 right-4 z-[9999] bg-slate-800 text-white px-4 py-3 rounded-lg shadow-2xl flex items-center border border-red-500 animate-in slide-in-from-bottom-2">
-          <div className="bg-red-500/10 p-2 rounded-full mr-3">
-            <WifiOff size={20} className="text-red-500" />
-          </div>
-          <div>
-            <p className="font-bold text-sm">Mode Hors Ligne Activé</p>
-            <p className="text-xs text-slate-400">
-              Vous pouvez continuer à travailler. Vos modifications sont sauvegardées localement.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* MINIMAL HEADER */}
+        <header className="h-14 border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] flex items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-4 flex-1">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 -ml-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-all"
+            >
+              <Menu size={20} />
+            </button>
 
-      {/* SYNC NOTIFICATION */}
-      {showSyncNotification && (
-        <div className="fixed bottom-4 right-4 z-[9999] bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-2xl flex items-center animate-in slide-in-from-bottom-2 fade-in">
-          <div className="bg-white dark:bg-slate-950/20 p-2 rounded-full mr-3 animate-spin-once">
-            <RefreshCw size={20} className="text-white" />
+            <h1 className="text-base font-semibold text-[var(--color-text-primary)]">
+              {activeTab === 'dashboard' ? 'Tableau de bord' :
+               activeTab === 'tasks' ? 'Mes Tâches' :
+               activeTab === 'agenda' ? 'Agenda' :
+               activeTab === 'projects' ? 'Dossiers' :
+               activeTab === 'clients' ? 'Clients' :
+               activeTab === 'prospection' ? 'Prospection' :
+               activeTab === 'partners' ? 'Partenaires' :
+               activeTab === 'employees' ? 'Salariés' :
+               activeTab === 'administrative' ? 'Administratif' :
+               activeTab === 'expenses' ? 'Dépenses' :
+               activeTab === 'settings' ? 'Paramètres' : 'Accueil'}
+            </h1>
           </div>
-          <div>
-            <p className="font-bold text-sm">Connexion Rétablie</p>
-            <p className="text-xs text-emerald-100">
-              Synchronisation des données effectuée avec succès.
-            </p>
-          </div>
-        </div>
-      )}
 
+          <div className="flex items-center gap-2">
+            <div className="hidden md:block w-64">
+              <UniversalSearch
+                clients={clients}
+                employees={employees}
+                projects={projects}
+                onNavigate={(tab, id) => {
+                  if (tab === 'projects' && id) {
+                    const project = projects.find(p => p.id === id);
+                    if (project) setSelectedProject(project);
+                  } else {
+                    handleTabSwitch(tab);
+                  }
+                }}
+              />
+            </div>
+
+            {currentUser?.role === 'ADMIN' && (
+              <button
+                onClick={() => setIsSendMessageModalOpen(true)}
+                className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-all"
+                title="Envoyer un message"
+              >
+                <Send size={18} />
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="relative p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-all"
+            >
+              <Bell size={18} />
+              {notifications.some((n) => !n.read) && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[var(--color-danger)] rounded-full"></span>
+              )}
+            </button>
+
+            <NotificationDropdown
+              isOpen={isNotifOpen}
+              onClose={() => setIsNotifOpen(false)}
+              notifications={notifications}
+              onNavigate={(pid) => handleDashboardNavigate(pid)}
+            />
+
+            <div className="relative hidden md:block">
+              <button
+                onClick={() => setIsQuickAddMenuOpen(!isQuickAddMenuOpen)}
+                className="btn btn-primary btn-sm"
+              >
+                <Plus size={16} />
+                Nouveau
+              </button>
+
+              {isQuickAddMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsQuickAddMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 py-2 animate-scale-in">
+                    <button
+                      onClick={() => {
+                        setIsModalOpen(true);
+                        setIsQuickAddMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-[var(--color-bg-hover)] transition-colors flex items-center gap-3 text-sm"
+                    >
+                      <FileText size={18} className="text-[var(--color-accent)]" />
+                      <div>
+                        <div className="font-medium text-[var(--color-text-primary)]">Nouveau Projet</div>
+                        <div className="text-xs text-[var(--color-text-tertiary)]">Créer un dossier</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleTabSwitch('expenses');
+                        setIsQuickAddMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-[var(--color-bg-hover)] transition-colors flex items-center gap-3 text-sm"
+                    >
+                      <Receipt size={18} className="text-[var(--color-success)]" />
+                      <div>
+                        <div className="font-medium text-[var(--color-text-primary)]">Nouvelle Dépense</div>
+                        <div className="text-xs text-[var(--color-text-tertiary)]">Ajouter une dépense</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleTabSwitch('clients');
+                        setIsQuickAddMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-[var(--color-bg-hover)] transition-colors flex items-center gap-3 text-sm"
+                    >
+                      <Users size={18} className="text-[var(--color-warning)]" />
+                      <div>
+                        <div className="font-medium text-[var(--color-text-primary)]">Nouveau Client</div>
+                        <div className="text-xs text-[var(--color-text-tertiary)]">Ajouter un client</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleTabSwitch('prospection');
+                        setIsQuickAddMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-[var(--color-bg-hover)] transition-colors flex items-center gap-3 text-sm"
+                    >
+                      <Briefcase size={18} className="text-blue-500" />
+                      <div>
+                        <div className="font-medium text-[var(--color-text-primary)]">Nouveau Prospect</div>
+                        <div className="text-xs text-[var(--color-text-tertiary)]">Ajouter un prospect</div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* CLEAN CONTENT AREA */}
+        <main className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)] scrollbar-thin">
+          <div className="max-w-[1600px] mx-auto p-4 md:p-6">
+            {!isHydrated && activeTab === 'dashboard' ? (
+              <DashboardSkeleton />
+            ) : !isHydrated ? (
+              <div className="h-screen"></div>
+            ) : (
+              <Suspense fallback={<DashboardSkeleton />}>{renderContent()}</Suspense>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* MOBILE SIDEBAR */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={handleTabSwitch}
@@ -1666,178 +2196,170 @@ const App: React.FC = () => {
         currentUser={currentUser}
       />
 
-      <main className="flex-1 md:ml-64 bg-transparent overflow-x-hidden min-h-screen relative w-full">
-        {/* HEADER */}
-        <div className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/50 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-4 md:px-8 py-4 flex justify-between items-center print:hidden shadow-sm">
-          <div className="flex items-center space-x-2 md:space-x-4 flex-1">
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 mr-2 text-white hover:bg-slate-800 rounded-lg md:hidden transition-colors"
-            >
-              <Menu size={24} />
-            </button>
-
-            {/* Breadcrumbs */}
-            <Breadcrumbs
-              items={[
-                {
-                  label: activeTab === 'dashboard' ? 'Tableau de bord' :
-                         activeTab === 'tasks' ? 'Mes Tâches' :
-                         activeTab === 'agenda' ? 'Agenda' :
-                         activeTab === 'projects' ? 'Dossiers' :
-                         activeTab === 'clients' ? 'Clients' :
-                         activeTab === 'prospection' ? 'Prospection' :
-                         activeTab === 'partners' ? 'Partenaires' :
-                         activeTab === 'employees' ? 'Salariés' :
-                         activeTab === 'administrative' ? 'Administratif' :
-                         activeTab === 'expenses' ? 'Dépenses' :
-                         activeTab === 'settings' ? 'Paramètres' : 'Accueil',
-                  onClick: () => {},
-                },
-                ...(selectedProject
-                  ? [
-                      {
-                        label: selectedProject.client?.name || 'Client',
-                        onClick: () => setActiveTab('clients'),
-                      },
-                      {
-                        label: selectedProject.title,
-                        onClick: () => {},
-                      },
-                    ]
-                  : []),
-              ]}
-              className="hidden md:flex"
-            />
-
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white capitalize md:hidden">
-              {activeTab === 'tasks' ? 'Mes Tâches' : activeTab}
-            </h1>
-            <div className="relative max-w-md w-full md:ml-4 flex items-center">
-              <div className="relative w-full">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  name="search"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  placeholder="Rechercher..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-900 border-none rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
-                />
-              </div>
-
-              {/* Manual Refresh Button */}
-              <button
-                onClick={handleManualRefresh}
-                className="md:hidden ml-2 p-2 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-white rounded-lg"
-                title="Actualiser l'application"
-              >
-                <RotateCw size={18} />
-              </button>
-
-              {globalSearchResults && searchQuery.length > 0 && (
-                <ImprovedSearchResults
-                  results={globalSearchResults}
-                  query={searchQuery}
-                  onProjectClick={(p) => {
-                    setSelectedProject(p);
-                    setGlobalSearchResults(null);
-                    setSearchQuery('');
-                  }}
-                  onClientClick={(c) => {
-                    const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
-                    setActiveTab(isPartner ? 'partners' : 'clients');
-                    setGlobalSearchResults(null);
-                    setSearchQuery('');
-                  }}
-                  onEmployeeClick={(e) => {
-                    setActiveTab('employees');
-                    setGlobalSearchResults(null);
-                    setSearchQuery('');
-                  }}
-                  onClose={() => {
-                    setGlobalSearchResults(null);
-                    setSearchQuery('');
-                  }}
-                />
-              )}
-
-            </div>
-          </div>
-
-          {/* Notification Bell */}
-          <div className="relative mr-2">
-            <button
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors relative"
-            >
-              <Bell size={20} />
-              {notifications.some((n) => !n.read) && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900 animate-pulse"></span>
-              )}
-            </button>
-            <NotificationDropdown
-              isOpen={isNotifOpen}
-              onClose={() => setIsNotifOpen(false)}
-              notifications={notifications}
-              onNavigate={(pid) => handleDashboardNavigate(pid)}
-            />
-          </div>
-
+      {/* MINIMAL MOBILE BOTTOM NAV */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-primary)] border-t border-[var(--color-border)] pb-safe">
+        <div className="grid grid-cols-5 gap-1 px-2 py-2">
           <button
-            onClick={() => setIsProfileModalOpen(true)}
-            className="flex items-center space-x-2 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
+            onClick={() => handleTabSwitch('dashboard')}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all ${
+              activeTab === 'dashboard'
+                ? 'text-[var(--color-accent)]'
+                : 'text-[var(--color-text-tertiary)]'
+            }`}
           >
-            {currentUser.avatarUrl ? (
-              <img
-                src={currentUser.avatarUrl}
-                alt="Profil"
-                className="w-8 h-8 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className={`w-8 h-8 rounded-full ${currentUser.avatarColor || 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-sm`}
-              >
-                {currentUser.customInitials || currentUser.fullName.charAt(0)}
-              </div>
+            <LayoutList size={20} />
+            <span className="text-[10px] mt-1 font-medium">Accueil</span>
+          </button>
+          <button
+            onClick={() => handleTabSwitch('projects')}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all ${
+              activeTab === 'projects'
+                ? 'text-[var(--color-accent)]'
+                : 'text-[var(--color-text-tertiary)]'
+            }`}
+          >
+            <Kanban size={20} />
+            <span className="text-[10px] mt-1 font-medium">Dossiers</span>
+          </button>
+          <button
+            onClick={() => setIsQuickAddMenuOpen(!isQuickAddMenuOpen)}
+            className="flex flex-col items-center justify-center py-1 px-1 rounded-lg bg-[var(--color-accent)] text-white transition-all relative"
+          >
+            <Plus size={22} strokeWidth={2.5} />
+            <span className="text-[10px] mt-0.5 font-semibold">Nouveau</span>
+          </button>
+          <button
+            onClick={() => handleTabSwitch('clients')}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all ${
+              activeTab === 'clients'
+                ? 'text-[var(--color-accent)]'
+                : 'text-[var(--color-text-tertiary)]'
+            }`}
+          >
+            <Search size={20} />
+            <span className="text-[10px] mt-1 font-medium">Clients</span>
+          </button>
+          <button
+            onClick={() => handleTabSwitch('tasks')}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all relative ${
+              activeTab === 'tasks'
+                ? 'text-[var(--color-accent)]'
+                : 'text-[var(--color-text-tertiary)]'
+            }`}
+          >
+            <Bell size={20} />
+            <span className="text-[10px] mt-1 font-medium">Tâches</span>
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute top-1.5 right-2 w-1.5 h-1.5 bg-[var(--color-danger)] rounded-full"></span>
             )}
           </button>
         </div>
+      </div>
 
-        {/* CONTENT AREA */}
-        {!isHydrated && activeTab === 'dashboard' ? (
-          <DashboardSkeleton />
-        ) : !isHydrated ? (
-          <div className="h-screen"></div>
-        ) : (
-          <Suspense fallback={<DashboardSkeleton />}>{renderContent()}</Suspense>
-        )}
-      </main>
+      {/* MOBILE QUICK ADD MENU */}
+      {isQuickAddMenuOpen && (
+        <>
+          <div
+            className="md:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
+            onClick={() => setIsQuickAddMenuOpen(false)}
+          />
+          <div className="md:hidden fixed bottom-20 left-4 right-4 bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-2xl shadow-2xl z-50 p-3 animate-slide-in">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setIsModalOpen(true);
+                  setIsQuickAddMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-[var(--color-accent-light)] flex items-center justify-center mb-2">
+                  <FileText size={24} className="text-[var(--color-accent)]" />
+                </div>
+                <span className="text-sm font-medium text-[var(--color-text-primary)]">Projet</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleTabSwitch('expenses');
+                  setIsQuickAddMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2">
+                  <Receipt size={24} className="text-[var(--color-success)]" />
+                </div>
+                <span className="text-sm font-medium text-[var(--color-text-primary)]">Dépense</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleTabSwitch('clients');
+                  setIsQuickAddMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-2">
+                  <Users size={24} className="text-[var(--color-warning)]" />
+                </div>
+                <span className="text-sm font-medium text-[var(--color-text-primary)]">Client</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleTabSwitch('prospection');
+                  setIsQuickAddMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-2">
+                  <Briefcase size={24} className="text-blue-500" />
+                </div>
+                <span className="text-sm font-medium text-[var(--color-text-primary)]">Prospect</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
-      {/* Quick Actions FAB */}
-      <QuickActions
-        onCreateProject={() => {
-          setPrefillClient(null);
-          setIsModalOpen(true);
-        }}
-        onCreateClient={() => {
-          setActiveTab('clients');
-          // The ClientsPage modal will open when the page mounts if we add a prop
-        }}
-        onCreateExpense={() => {
-          setActiveTab('expenses');
-        }}
-        onCreateTask={() => {
-          setActiveTab('tasks');
-        }}
-      />
+      {/* ALERT BANNER - Minimal */}
+      {docAlerts && (
+        <div className={`fixed top-0 left-0 right-0 z-50 px-4 py-2.5 flex items-center justify-between text-sm border-b ${
+          docAlerts.type === 'expired'
+            ? 'bg-[var(--color-danger-light)] text-[var(--color-danger)] border-[var(--color-danger)]'
+            : 'bg-[var(--color-warning-light)] text-[var(--color-warning)] border-[var(--color-warning)]'
+        }`}>
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} />
+            <span className="font-medium">
+              {docAlerts.type === 'expired'
+                ? `${docAlerts.count} document(s) expiré(s)`
+                : `${docAlerts.count} document(s) expirent bientôt`}
+            </span>
+            <button
+              onClick={() => handleTabSwitch(docAlerts.type === 'expired' ? 'partners' : 'administrative')}
+              className="text-xs underline hover:no-underline ml-2"
+            >
+              Voir
+            </button>
+          </div>
+          <button onClick={() => setDocAlerts(null)} className="p-1 hover:bg-black/5 rounded">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* OFFLINE INDICATOR - Minimal */}
+      {!isOnline && (
+        <div className="fixed bottom-20 md:bottom-4 right-4 z-50 bg-[var(--color-bg-primary)] border border-[var(--color-border)] px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm">
+          <WifiOff size={16} className="text-[var(--color-warning)]" />
+          <span className="text-[var(--color-text-secondary)]">Mode hors ligne</span>
+        </div>
+      )}
+
+      {/* SYNC NOTIFICATION - Minimal */}
+      {showSyncNotification && (
+        <div className="fixed bottom-20 md:bottom-4 right-4 z-50 bg-[var(--color-success-light)] border border-[var(--color-success)] px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm animate-fade-in">
+          <RefreshCw size={16} className="text-[var(--color-success)]" />
+          <span className="text-[var(--color-success)] font-medium">Synchronisé</span>
+        </div>
+      )}
 
       <Suspense fallback={null}>
         {isModalOpen && (
@@ -1861,12 +2383,35 @@ const App: React.FC = () => {
           />
         )}
       </Suspense>
+
       {currentUser && (
         <UserProfileModal
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
           user={currentUser}
           onSave={handleUpdateProfile}
+        />
+      )}
+
+      {currentUser?.role === 'ADMIN' && (
+        <Suspense fallback={<div>Chargement...</div>}>
+          <SendMessageModal
+            isOpen={isSendMessageModalOpen}
+            onClose={() => setIsSendMessageModalOpen(false)}
+            currentUser={currentUser}
+            clients={clients}
+            projects={projects}
+          />
+        </Suspense>
+      )}
+
+      <KeyboardShortcutsHelper />
+
+      {/* AI Chat Widget — visible on all pages when logged in */}
+      {currentUser && (
+        <AIChatWidget
+          currentPage={activeTab}
+          userName={currentUser.fullName?.split(' ')[0]}
         />
       )}
     </div>

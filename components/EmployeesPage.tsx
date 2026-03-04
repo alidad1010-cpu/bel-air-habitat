@@ -12,19 +12,27 @@ import {
   X,
   ExternalLink,
   Briefcase,
-  DollarSign,
   Camera,
   FileText,
   Download,
   Loader2,
   Clock,
-  Calendar,
   CheckSquare,
   FileSpreadsheet,
   ChevronLeft,
   ChevronRight,
-  Ban,
   RotateCw,
+  Users,
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Shield,
+  Eye,
+  Edit,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -62,7 +70,6 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   onDeleteEmployee,
   expenses = [],
   onAddExpense,
-  onUpdateExpense,
   onDeleteExpense,
   attendances = [],
   onUpdateAttendance,
@@ -80,7 +87,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
   // --- EXPENSES STATE (Inside Modal) ---
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false); // Only for "Add New"
@@ -103,6 +110,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   // TIME MODAL STATE
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
   const [timeFormData, setTimeFormData] = useState({ startTime: '09:00', endTime: '17:00' });
+  const [isUploading, setIsUploading] = useState(false);
 
   // Default empty employee
   const emptyEmployee: Employee = {
@@ -148,12 +156,16 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
         e.firstName.toLowerCase().includes(lowerQuery) ||
         e.position.toLowerCase().includes(lowerQuery);
 
+      // Apply status filter
+      if (filterStatus === 'ACTIVE' && !e.isActive) return false;
+      if (filterStatus === 'INACTIVE' && e.isActive) return false;
+
       if (viewMode === 'FOREIGNERS') {
         return matchesSearch && e.isForeigner;
       }
       return matchesSearch;
     });
-  }, [employees, debouncedSearchQuery, viewMode]);
+  }, [employees, debouncedSearchQuery, viewMode, filterStatus]);
 
   // Filtered Expenses for the Selected Employee
   const employeeExpenses = useMemo(() => {
@@ -258,7 +270,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
       let url;
       try {
         url = await uploadFileToCloud(path, fileToUpload);
-      } catch (err) {
+      } catch (_err) {
         console.warn('Cloud upload failed, fallback to local base64');
         // 4.5MB limit for Base64
         if (fileToUpload.size > 4.5 * 1024 * 1024)
@@ -340,8 +352,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
         alert("L'analyse a échoué. Veuillez saisir manuellement.");
         setExpenseMode('FORM');
       }
-    } catch (error) {
-      console.error('Analysis Error', error);
+    } catch (_error) {
+      console.error('Analysis Error', _error);
       alert("Erreur lors de l'analyse.");
       setExpenseMode('FORM');
     } finally {
@@ -523,7 +535,6 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
     for (let i = minEmpIdx; i <= maxEmpIdx; i++) {
       const emp = employees[i];
       daysOfMonth.forEach((day) => {
-        const ts = day.getTime();
         // Naive check: is ts between min and max strings? Careful with time components.
         // We use date strings YYYY-MM-DD
         const dayTs = new Date(day.toISOString().split('T')[0]).getTime();
@@ -676,95 +687,120 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   };
 
   const inputClass =
-    'w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm';
-  const labelClass = 'block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase mb-1';
+    'w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm transition-all';
+  const labelClass = 'block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5';
 
   return (
     <div className="space-y-6 animate-fade-in relative">
       {/* HEADER & CONTROLS */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-600 dark:text-emerald-400">
-            {mainTab === 'EMPLOYEES' ? <User size={24} /> : <Clock size={24} />}
-          </div>
+      <div className="print:hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
               {mainTab === 'EMPLOYEES' ? 'Gestion des Salariés' : "Relevé d'Heures"}
-            </h2>
-            <p className="text-slate-700 dark:text-white text-sm">
-              Ressources Humaines & Comptabilité
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+              <span className="font-semibold text-teal-600 dark:text-teal-400">
+                {employees.length}
+              </span>
+              salarié{employees.length > 1 ? 's' : ''}
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              Ressources Humaines
             </p>
           </div>
-        </div>
 
-        <div className="flex items-center space-x-3 w-full md:w-auto">
-          {/* APP TAB SWITCHER */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-            <button
-              onClick={() => setMainTab('EMPLOYEES')}
-              className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${mainTab === 'EMPLOYEES' ? 'bg-white dark:bg-slate-700 shadow text-emerald-600 dark:text-white' : 'text-slate-500'}`}
-            >
-              Salariés
-            </button>
-            <button
-              onClick={() => setMainTab('TIME')}
-              className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${mainTab === 'TIME' ? 'bg-white dark:bg-slate-700 shadow text-emerald-600 dark:text-white' : 'text-slate-500'}`}
-            >
-              Heures
-            </button>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* TAB SWITCHER */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setMainTab('EMPLOYEES')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mainTab === 'EMPLOYEES' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                Salariés
+              </button>
+              <button
+                onClick={() => setMainTab('TIME')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mainTab === 'TIME' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                Heures
+              </button>
+            </div>
+
+            {mainTab === 'EMPLOYEES' && (
+              <>
+                <button
+                  onClick={handlePrint}
+                  className="p-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                  title="Imprimer la liste (PDF)"
+                >
+                  <Printer size={18} />
+                </button>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl font-semibold shadow-sm transition-all text-sm whitespace-nowrap"
+                >
+                  <Plus size={18} className="mr-1.5" /> Ajouter
+                </button>
+              </>
+            )}
+
+            {mainTab === 'TIME' && (
+              <button
+                onClick={exportPayroll}
+                className="flex items-center bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl font-semibold shadow-sm transition-all text-sm whitespace-nowrap"
+              >
+                <FileSpreadsheet size={18} className="mr-1.5" /> Export Paie
+              </button>
+            )}
           </div>
-
-          {mainTab === 'EMPLOYEES' && (
-            <>
-              <button
-                onClick={handlePrint}
-                className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white rounded-lg hover:bg-slate-200 transition-colors"
-                title="Imprimer la liste (PDF)"
-              >
-                <Printer size={20} />
-              </button>
-              <button
-                onClick={() => handleOpenModal()}
-                className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm whitespace-nowrap"
-              >
-                <Plus size={18} className="mr-2" /> Ajouter
-              </button>
-            </>
-          )}
-
-          {mainTab === 'TIME' && (
-            <button
-              onClick={exportPayroll}
-              className="flex items-center bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm whitespace-nowrap"
-            >
-              <FileSpreadsheet size={18} className="mr-2" /> Export Paie
-            </button>
-          )}
         </div>
       </div>
-
       {/* --- EMPLOYEES VIEW --- */}
       {mainTab === 'EMPLOYEES' && (
         <>
           {/* VIEW SWITCHER */}
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit print:hidden">
-            <button
-              onClick={() => setViewMode('LIST')}
-              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'LIST' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600 dark:text-white' : 'text-slate-700 dark:text-white hover:text-slate-700 dark:text-white'}`}
-            >
-              Tous les Salariés
-            </button>
-            <button
-              onClick={() => setViewMode('FOREIGNERS')}
-              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${viewMode === 'FOREIGNERS' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600 dark:text-white' : 'text-slate-700 dark:text-white hover:text-slate-700 dark:text-white'}`}
-            >
-              <Globe size={16} className="mr-2" /> Salariés Étrangers (Hors UE)
-            </button>
+          <div className="flex flex-col md:flex-row gap-4 print:hidden">
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit border border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setViewMode('LIST')}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'LIST' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                Tous les Salariés
+              </button>
+              <button
+                onClick={() => setViewMode('FOREIGNERS')}
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${viewMode === 'FOREIGNERS' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg shadow-blue-500/40 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                <Globe size={16} className="mr-2" /> Salariés Étrangers (Hors UE)
+              </button>
+            </div>
+
+            {/* STATUS FILTER */}
+            <div className="flex p-1 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-xl w-full md:w-fit border-2 border-slate-300 dark:border-slate-600">
+              <button
+                onClick={() => setFilterStatus('ALL')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${filterStatus === 'ALL' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg shadow-blue-500/40 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                <Users size={16} className="mr-2" /> Tous
+              </button>
+              <button
+                onClick={() => setFilterStatus('ACTIVE')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${filterStatus === 'ACTIVE' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg shadow-blue-500/40 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                <UserCheck size={16} className="mr-2" /> Actifs
+              </button>
+              <button
+                onClick={() => setFilterStatus('INACTIVE')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${filterStatus === 'INACTIVE' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg shadow-blue-500/40 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
+              >
+                <UserX size={16} className="mr-2" /> Inactifs
+              </button>
+            </div>
           </div>
 
-          <div className="relative w-full md:w-96 print:hidden">
+          <div className="relative w-full md:w-96 print:hidden group">
             <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 dark:text-white"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 dark:text-cyan-400 group-focus-within:text-cyan-600"
               size={18}
             />
             <input
@@ -772,14 +808,14 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
               placeholder="Rechercher un salarié..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm dark:text-white"
+              className="w-full pl-10 pr-4 py-3 bg-gradient-to-r from-blue-50/50 to-cyan-50/50 dark:from-blue-950/30 dark:to-cyan-950/30 border-2 border-blue-200 dark:border-blue-800 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 outline-none text-sm dark:text-white shadow-md hover:shadow-blue-500/20 transition-all"
             />
           </div>
 
           {/* EMPLOYEES TABLE */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden overflow-x-auto print:shadow-none print:border-0 print:overflow-visible">
+          <div className="bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/30 dark:from-slate-900 dark:via-blue-950/20 dark:to-cyan-950/20 rounded-xl shadow-lg shadow-blue-500/20 border-2 border-blue-200 dark:border-blue-800 overflow-hidden overflow-x-auto print:shadow-none print:border-0 print:overflow-visible">
             <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-white font-bold uppercase text-xs border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white font-bold uppercase text-xs">
                 <tr>
                   <th className="px-6 py-4">Salarié</th>
                   <th className="px-6 py-4">Poste</th>
@@ -789,7 +825,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
                   <th className="px-6 py-4 text-right print:hidden">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              <tbody className="divide-y divide-blue-100 dark:divide-blue-900">
                 {filteredEmployees.length === 0 ? (
                   <tr>
                     <td
@@ -804,11 +840,11 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
                     <tr
                       key={emp.id}
                       onClick={() => handleOpenModal(emp)}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group"
+                      className="hover:bg-blue-100/50 dark:hover:bg-blue-900/30 cursor-pointer transition-all duration-200 group"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mr-3 text-xs">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white flex items-center justify-center font-bold mr-3 text-xs shadow-lg shadow-blue-500/40">
                             {emp.firstName.charAt(0)}
                             {emp.lastName.charAt(0)}
                           </div>
@@ -816,7 +852,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
                             <div className="font-bold text-slate-800 dark:text-white uppercase">
                               {emp.lastName} {emp.firstName}
                             </div>
-                            <div className="text-xs text-slate-700 dark:text-white print:hidden">
+                            <div className="text-xs text-slate-600 dark:text-slate-400 print:hidden">
                               {emp.email || emp.phone}
                             </div>
                           </div>
@@ -830,13 +866,13 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${emp.isForeigner ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white'}`}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${emp.isForeigner ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-700 dark:text-orange-300 border-2 border-orange-300 dark:border-orange-700' : 'bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 text-slate-700 dark:text-white border-2 border-slate-300 dark:border-slate-600'}`}
                         >
                           {emp.isForeigner && <Globe size={10} className="mr-1" />}
                           {emp.nationality}
                         </span>
                       </td>
-                      <td className="px-6 py-4 hidden md:table-cell font-mono text-xs">
+                      <td className="px-6 py-4 hidden md:table-cell font-mono text-xs text-slate-600 dark:text-slate-400">
                         {emp.idCardNumber || '-'}
                       </td>
                       <td className="px-6 py-4 text-right print:hidden">
@@ -845,7 +881,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
                             e.stopPropagation();
                             onDeleteEmployee(emp.id);
                           }}
-                          className="p-2 text-slate-700 dark:text-white hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className="p-2 text-slate-600 dark:text-slate-400 hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-all hover:scale-110"
                         >
                           <Trash2 size={16} />
                         </button>

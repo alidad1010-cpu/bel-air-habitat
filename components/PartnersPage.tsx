@@ -33,46 +33,11 @@ const PartnersPage: React.FC<PartnersPageProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Client | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [filterType, setFilterType] = useState<'ALL' | 'PARTENAIRE' | 'SOUS_TRAITANT'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'VALID' | 'WARNING' | 'EXPIRED'>('ALL');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter only Partners and Subcontractors
-  const partners = clients.filter((c) => {
-    // Exception: Always show "Coop", "Syndic", or "Cop"
-    const nameLower = (c.name || '').toLowerCase();
-    const normalizedName = nameLower.replace(/[^a-z0-9]/g, '');
-    if (
-      nameLower.includes('coop') ||
-      nameLower.includes('syndic') ||
-      normalizedName.includes('coop') ||
-      /\bcop\b/.test(nameLower) ||
-      nameLower.includes('cop ')
-    ) {
-      return true;
-    }
-
-    const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
-    if (!isPartner) return false;
-
-    return (
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.city?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
-
-  const [newPartner, setNewPartner] = useState<Client>({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    zipCode: '',
-    city: '',
-    type: 'SOUS_TRAITANT',
-    siret: '',
-    vatNumber: '',
-  });
-
-  // Calculate Document Status
+  // Helper to determine document status
   const getDocStatus = (docs: ClientDocument[], type: string) => {
     const doc = docs?.find((d) => d.type === type);
     if (!doc)
@@ -92,7 +57,7 @@ const PartnersPage: React.FC<PartnersPageProps> = ({
           status: 'EXPIRED',
           label: 'Expiré',
           color:
-            'text-slate-900 dark:text-white dark:text-white bg-red-500 font-bold border-red-600',
+            'text-slate-900 dark:text-white bg-red-500 font-bold border-red-600',
         };
       if (diffDays < 30)
         return {
@@ -108,6 +73,78 @@ const PartnersPage: React.FC<PartnersPageProps> = ({
       color: 'text-emerald-700 bg-emerald-50 border-emerald-200',
     };
   };
+
+  // Get overall partner status
+  const getPartnerOverallStatus = (partner: Client): 'VALID' | 'WARNING' | 'EXPIRED' => {
+    const docs = partner.documents || [];
+    let hasExpired = false;
+    let hasWarning = false;
+
+    for (const doc of docs) {
+      const status = getDocStatus([doc], doc.type);
+      if (status.status === 'EXPIRED') {
+        hasExpired = true;
+        break;
+      }
+      if (status.status === 'WARNING') {
+        hasWarning = true;
+      }
+    }
+
+    if (hasExpired) return 'EXPIRED';
+    if (hasWarning) return 'WARNING';
+    return 'VALID';
+  };
+
+  // Filter only Partners and Subcontractors
+  const partners = clients.filter((c) => {
+    // Exception: Always show "Coop", "Syndic", or "Cop"
+    const nameLower = (c.name || '').toLowerCase();
+    const normalizedName = nameLower.replace(/[^a-z0-9]/g, '');
+    if (
+      nameLower.includes('coop') ||
+      nameLower.includes('syndic') ||
+      normalizedName.includes('coop') ||
+      /\bcop\b/.test(nameLower) ||
+      nameLower.includes('cop ')
+    ) {
+      return true;
+    }
+
+    const isPartner = c.type === 'PARTENAIRE' || c.type === 'SOUS_TRAITANT';
+    if (!isPartner) return false;
+
+    // Apply search filter
+    const matchesSearch =
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.city?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Apply type filter
+    if (filterType !== 'ALL' && c.type !== filterType) return false;
+
+    // Apply status filter
+    if (filterStatus !== 'ALL') {
+      const overallStatus = getPartnerOverallStatus(c);
+      if (overallStatus !== filterStatus) return false;
+    }
+
+    return true;
+  });
+
+  const [newPartner, setNewPartner] = useState<Client>({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    zipCode: '',
+    city: '',
+    type: 'SOUS_TRAITANT',
+    siret: '',
+    vatNumber: '',
+  });
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +258,7 @@ const PartnersPage: React.FC<PartnersPageProps> = ({
       let url;
       try {
         url = await uploadFileToCloud(path, fileToUpload);
-      } catch (error) {
+      } catch (_error) {
         console.warn('Cloud upload failed, fallback to base64');
         // 4.5MB limit for Base64
         if (fileToUpload.size > 4.5 * 1024 * 1024)
@@ -366,20 +403,36 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
 
   return (
     <div className="space-y-6 animate-fade-in relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
-            <Handshake className="mr-3 text-emerald-600" /> Partenaires & Sous-traitants
-          </h2>
-          <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">
-            Gestion des contrats, assurances et documents administratifs.
-          </p>
+      <div>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Partenaires & Sous-traitants
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+              <span className="font-semibold text-teal-600 dark:text-teal-400">
+                {partners.length}
+              </span>
+              partenaire{partners.length > 1 ? 's' : ''}
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              Gestion des contrats et documents
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm transition-all whitespace-nowrap text-sm"
+          >
+            <Plus size={18} className="mr-1.5" />
+            Nouveau Partenaire
+          </button>
         </div>
 
-        <div className="flex space-x-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-soft p-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
             <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 dark:text-slate-200 dark:text-white"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
               size={18}
             />
             <input
@@ -388,19 +441,47 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
               autoComplete="off"
               autoCorrect="off"
               spellCheck="false"
-              placeholder="Rechercher..."
+              placeholder="Rechercher par nom, email, ville..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 dark:text-white"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm text-slate-900 dark:text-white transition-all"
             />
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors text-sm whitespace-nowrap"
-          >
-            <Plus size={18} className="mr-2" />
-            Ajouter
-          </button>
+
+          <div className="flex gap-2">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as 'ALL' | 'PARTENAIRE' | 'SOUS_TRAITANT')}
+              className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+            >
+              <option value="ALL">Tous les types</option>
+              <option value="PARTENAIRE">Partenaires</option>
+              <option value="SOUS_TRAITANT">Sous-traitants</option>
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as 'ALL' | 'VALID' | 'WARNING' | 'EXPIRED')}
+              className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+            >
+              <option value="ALL">Tous les statuts</option>
+              <option value="VALID">Documents valides</option>
+              <option value="WARNING">À renouveler</option>
+              <option value="EXPIRED">Expirés</option>
+            </select>
+
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setFilterType('ALL');
+                setFilterStatus('ALL');
+              }}
+              className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-sm transition-colors"
+            >
+              Réinitialiser
+            </button>
+          </div>
+        </div>
         </div>
       </div>
 
@@ -421,10 +502,10 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
             <div
               key={partner.id}
               onClick={() => setSelectedPartner(partner)}
-              className={`bg-white dark:bg-slate-900 rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer group p-5 relative overflow-hidden ${hasIssues ? 'border-red-300 ring-1 ring-red-300' : 'border-slate-200 dark:border-slate-800'} `}
+              className={`bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/30 dark:from-slate-900 dark:via-emerald-950/20 dark:to-teal-950/20 rounded-xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group p-5 relative overflow-hidden hover:scale-[1.02] ${hasIssues ? 'border-red-400 shadow-red-500/30 hover:shadow-red-500/50' : 'border-emerald-200 dark:border-emerald-800 shadow-emerald-500/20 hover:shadow-emerald-500/40'} `}
             >
               {hasIssues && (
-                <div className="absolute top-0 right-0 bg-red-500 text-slate-900 dark:text-white dark:text-white text-[9px] px-2 py-0.5 font-bold uppercase rounded-bl">
+                <div className="absolute top-0 right-0 bg-red-500 text-slate-900 dark:text-white text-[9px] px-2 py-0.5 font-bold uppercase rounded-bl">
                   Action Requise
                 </div>
               )}
@@ -437,11 +518,11 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                     {partner.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">
                       {partner.name}
                     </h3>
                     <div className="flex space-x-2 mt-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
                         {partner.type === 'SOUS_TRAITANT' ? 'SOUS-TRAITANT' : 'PARTENAIRE'}
                       </span>
                     </div>
@@ -451,7 +532,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
 
               <div className="space-y-2 mb-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
                 <div className="flex justify-between text-xs items-center">
-                  <span className="text-slate-700 dark:text-slate-200 dark:text-white font-medium">
+                  <span className="text-slate-700 dark:text-slate-200 font-medium">
                     Kbis (3 mois)
                   </span>
                   <span
@@ -461,7 +542,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                   </span>
                 </div>
                 <div className="flex justify-between text-xs items-center">
-                  <span className="text-slate-700 dark:text-slate-200 dark:text-white font-medium">
+                  <span className="text-slate-700 dark:text-slate-200 font-medium">
                     Décennale
                   </span>
                   <span
@@ -471,7 +552,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                   </span>
                 </div>
                 <div className="flex justify-between text-xs items-center">
-                  <span className="text-slate-700 dark:text-slate-200 dark:text-white font-medium">
+                  <span className="text-slate-700 dark:text-slate-200 font-medium">
                     URSSAF (6 mois)
                   </span>
                   <span
@@ -482,7 +563,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                 </div>
               </div>
 
-              <div className="flex items-center text-sm text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white">
+              <div className="flex items-center text-sm text-slate-700 dark:text-slate-200">
                 <Phone size={14} className="mr-2" /> {partner.phone || '-'}
               </div>
             </div>
@@ -495,11 +576,11 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                 Nouveau Partenaire
               </h3>
               <button onClick={() => setIsModalOpen(false)}>
-                <X className="text-slate-700 dark:text-slate-200 dark:text-white" />
+                <X className="text-slate-700 dark:text-slate-200" />
               </button>
             </div>
             <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
@@ -594,10 +675,10 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                   {selectedPartner.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
                     {selectedPartner.name}
                   </h2>
-                  <p className="text-xs text-slate-700 dark:text-slate-200 dark:text-white">
+                  <p className="text-xs text-slate-700 dark:text-slate-200">
                     SIRET: {selectedPartner.siret || 'N/A'} • TVA:{' '}
                     {selectedPartner.vatNumber || 'N/A'}
                   </p>
@@ -611,13 +692,13 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                       setSelectedPartner(null);
                     }
                   }}
-                  className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500 p-2"
+                  className="text-slate-700 dark:text-slate-200 hover:text-red-500 p-2"
                 >
                   <Trash2 size={20} />
                 </button>
                 <button
                   onClick={() => setSelectedPartner(null)}
-                  className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 p-2"
+                  className="text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 p-2"
                 >
                   <X size={24} />
                 </button>
@@ -628,7 +709,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* DOCUMENTS SECTION (2 Cols) */}
                 <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-4 flex items-center border-b border-slate-100 pb-2">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center border-b border-slate-100 pb-2">
                     <FileText size={18} className="mr-2 text-emerald-500" /> Documents Légaux &
                     Conformité
                   </h3>
@@ -653,7 +734,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                           className="flex flex-col p-3 border rounded-lg bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 relative hover:border-emerald-300 transition-colors"
                         >
                           <div className="flex justify-between items-start mb-2">
-                            <div className="font-bold text-sm text-slate-700 dark:text-slate-200 dark:text-white">
+                            <div className="font-bold text-sm text-slate-700 dark:text-slate-200">
                               {docType.label}
                             </div>
                             <span
@@ -665,7 +746,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
 
                           {doc ? (
                             <div className="flex justify-between items-end mt-auto">
-                              <span className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white">
+                              <span className="text-[10px] text-slate-700 dark:text-slate-200">
                                 Exp: {new Date(doc.expiryDate || '').toLocaleDateString()}
                               </span>
                               <a
@@ -680,7 +761,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                             <div className="mt-auto pt-2">
                               <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="w-full py-1.5 border border-dashed border-slate-300 rounded text-xs text-slate-700 dark:text-slate-200 dark:text-white hover:bg-white dark:bg-slate-900 hover:text-emerald-600 transition-colors flex justify-center items-center"
+                                className="w-full py-1.5 border border-dashed border-slate-300 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-white dark:bg-slate-900 hover:text-emerald-600 transition-colors flex justify-center items-center"
                                 onMouseEnter={() => {
                                   // Hack to pass the docType to the input change handler via a temporary variable or just set the input context
                                   // Since we use a single input, we'll just use the onClick handler logic
@@ -716,7 +797,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                 {/* CONTRACT & INFO SECTION (1 Col) */}
                 <div className="space-y-6">
                   <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-4 flex items-center border-b border-slate-100 pb-2">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center border-b border-slate-100 pb-2">
                       <Briefcase size={18} className="mr-2 text-indigo-500" /> Contrat Cadre
                     </h3>
                     <div className="space-y-4">
@@ -726,7 +807,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                       >
                         <Sparkles size={18} className="mr-2" /> Générer Contrat (IA)
                       </button>
-                      <p className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white text-center leading-tight">
+                      <p className="text-[10px] text-slate-700 dark:text-slate-200 text-center leading-tight">
                         Génère un contrat PDF basé sur le modèle juridique 2022 (Art. 283-2 CGI
                         Autoliquidation).
                       </p>
@@ -734,16 +815,16 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                   </div>
 
                   <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-4 flex items-center border-b border-slate-100 pb-2">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center border-b border-slate-100 pb-2">
                       <User
                         size={18}
-                        className="mr-2 text-slate-700 dark:text-slate-200 dark:text-white"
+                        className="mr-2 text-slate-700 dark:text-slate-200"
                       />{' '}
                       Coordonnées
                     </h3>
                     <div className="space-y-3 text-sm">
                       <div>
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">
                           Adresse
                         </label>
                         <p className="font-medium">
@@ -753,7 +834,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                         </p>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">
                           Email
                         </label>
                         <a
@@ -764,7 +845,7 @@ LE CLIENT(BEL AIR HABITAT)                     LE PRESTATAIRE(${selectedPartner.
                         </a>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">
                           Téléphone
                         </label>
                         <a href={`tel:${selectedPartner.phone} `} className="block font-bold">

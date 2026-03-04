@@ -47,7 +47,7 @@ const COLUMN_CONFIG = [
       title: 'Terminé / Facture', 
       statuses: [ProjectStatus.WAITING_VALIDATION, ProjectStatus.COMPLETED], 
       color: 'border-slate-500', 
-      bgHeader: 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white',
+      bgHeader: 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200',
       bgBody: 'bg-slate-100/50 dark:bg-slate-900/50'
   },
 ];
@@ -69,13 +69,13 @@ const KanbanCard = React.memo(({ project, onClick, onDelete }: { project: Projec
             className="bg-white dark:bg-slate-900 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md hover:border-emerald-500 dark:hover:border-emerald-500 cursor-pointer transition-all group relative animate-in zoom-in-95 duration-200 content-visible"
         >
             <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] font-mono text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white font-bold">Code Affaire: {project.businessCode || '---'}</span>
+                <span className="text-[10px] font-mono text-slate-700 dark:text-slate-200 font-bold">Code Affaire: {project.businessCode || '---'}</span>
                 {project.priority === 'Haute' && (
                     <span className="w-2 h-2 rounded-full bg-red-500" title="Priorité Haute"></span>
                 )}
             </div>
             
-            <h4 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white text-sm mb-1 leading-snug group-hover:text-emerald-600 transition-colors pr-6 line-clamp-2">
+            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1 leading-snug group-hover:text-emerald-600 transition-colors pr-6 line-clamp-2">
                 {project.title}
             </h4>
             
@@ -89,7 +89,7 @@ const KanbanCard = React.memo(({ project, onClick, onDelete }: { project: Projec
                 </button>
             )}
             
-            <div className="flex items-center text-xs text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white mb-3">
+            <div className="flex items-center text-xs text-slate-700 dark:text-slate-200 mb-3">
                 <User size={12} className="mr-1 shrink-0"/>
                 <span className="truncate">{project.client.name}</span>
             </div>
@@ -97,7 +97,7 @@ const KanbanCard = React.memo(({ project, onClick, onDelete }: { project: Projec
             <div className="flex items-center justify-between pt-2 border-t border-slate-50 dark:border-slate-800">
                 <div className="flex items-center space-x-2">
                     {project.budget ? (
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                             {formatBudget(project.budget)}
                         </span>
                     ) : (
@@ -106,7 +106,7 @@ const KanbanCard = React.memo(({ project, onClick, onDelete }: { project: Projec
                 </div>
                 <div className="flex items-center space-x-1">
                     {isLate && <span title="En retard"><AlertCircle size={14} className="text-red-500" /></span>}
-                    <div className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white">Ajouté le {new Date(project.createdAt).toLocaleDateString(undefined, {day: 'numeric', month: 'short'})}</div>
+                    <div className="text-[10px] text-slate-700 dark:text-slate-200">Ajouté le {new Date(project.createdAt).toLocaleDateString(undefined, {day: 'numeric', month: 'short'})}</div>
                 </div>
             </div>
         </div>
@@ -165,7 +165,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ col, projects, onProjectCli
                 {hasMore && (
                     <button 
                         onClick={() => setVisibleCount(prev => prev + 15)}
-                        className="w-full py-2 text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900/50 hover:bg-white dark:bg-slate-900/80 dark:bg-slate-800/50 dark:hover:bg-slate-700 rounded-lg flex items-center justify-center transition-colors"
+                        className="w-full py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900/50 hover:bg-white dark:bg-slate-900/80 dark:bg-slate-800/50 dark:hover:bg-slate-700 rounded-lg flex items-center justify-center transition-colors"
                     >
                         <ChevronDown size={14} className="mr-1"/> Voir la suite ({projects.length - visibleCount})
                     </button>
@@ -173,7 +173,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ col, projects, onProjectCli
 
                 {projects.length === 0 && (
                     <div className="h-20 flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                        <span className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-medium">Vide</span>
+                        <span className="text-xs text-slate-700 dark:text-slate-200 font-medium">Vide</span>
                     </div>
                 )}
             </div>

@@ -70,7 +70,7 @@ const ProspectionPage: React.FC<ProspectionPageProps> = ({ prospects, onAddProsp
             {/* Header / Actions */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center space-x-4 w-full md:w-auto">
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">Pipeline Commercial</h2>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Pipeline Commercial</h2>
                     <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full text-sm font-bold border border-slate-200 dark:border-slate-700">
                         {prospects.length} Dossiers
                     </span>

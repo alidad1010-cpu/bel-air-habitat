@@ -4,41 +4,38 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+      },
       colors: {
-        // Deep Space / Midnight Theme for Dark Mode
-        midnight: {
-          950: '#0a0a1e', // Main Dark BG (Deep Navy)
-          900: '#1a1a2e', // Panels
-          800: '#16213e', // Cards
-          700: '#1f2937', // Hover States
-        },
-        // Premium Gold Accents
-        gold: {
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706', // Rich Gold
-        },
-        // TRUE Emerald - Nature/Habitat Theme
-        emerald: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399', // Accent clair
-          500: '#10b981', // PRIMARY - Émeraude
-          600: '#059669', // Hover
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
-        },
-        // Turquoise - Secondary/Complement
-        teal: {
+        // Primary brand — Teal/Emerald for renovation/habitat
+        primary: {
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
           400: '#2dd4bf',
-          500: '#14b8a6', // Secondary
+          500: '#14b8a6',
           600: '#0d9488',
           700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
+          950: '#042f2e',
+          DEFAULT: '#0d9488',
         },
-        // Standard Slate (kept for compatibility)
+        // Accent — Warm amber for CTA highlights
+        accent: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+          DEFAULT: '#d97706',
+        },
+        // Slate — UI neutral tones
         slate: {
           50: '#f8fafc',
           100: '#f1f5f9',
@@ -53,15 +50,54 @@ module.exports = {
           950: '#020617',
         },
       },
+      borderRadius: {
+        'xl': '14px',
+        '2xl': '18px',
+        '3xl': '24px',
+      },
       boxShadow: {
-        'glow-sm': '0 0 10px rgba(16, 185, 129, 0.2)', // Emerald Glow
-        'glow-md': '0 0 20px rgba(16, 185, 129, 0.25)', // Emerald Glow
-        'glow-lg': '0 0 30px rgba(16, 185, 129, 0.3)', // Emerald Glow Large
-        'glow-gold': '0 0 20px rgba(245, 158, 11, 0.2)', // Gold Glow
-        'glow-teal': '0 0 20px rgba(20, 184, 166, 0.2)', // Turquoise Glow
+        'soft': '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)',
+        'medium': '0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -2px rgba(0,0,0,0.04)',
+        'elevated': '0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -4px rgba(0,0,0,0.04)',
+        'glow-teal': '0 0 20px rgba(13, 148, 136, 0.15)',
+        'glow-amber': '0 0 20px rgba(217, 119, 6, 0.15)',
+        'glow-emerald': '0 0 20px rgba(5, 150, 105, 0.15)',
+        'inner-soft': 'inset 0 2px 4px 0 rgba(0,0,0,0.04)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-renovation': 'linear-gradient(135deg, #0d9488 0%, #10b981 50%, #059669 100%)',
+        'gradient-warm': 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
+        'gradient-dark': 'linear-gradient(180deg, #0c1222 0%, #111827 100%)',
+      },
+      animation: {
+        'slide-up': 'slideUp 0.3s ease-out',
+        'slide-in': 'slideIn 0.25s ease-out',
+        'fade-in': 'fadeIn 0.2s ease-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
+        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+      },
+      keyframes: {
+        slideUp: {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideIn: {
+          from: { opacity: '0', transform: 'translateY(-8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        fadeIn: {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        scaleIn: {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        pulseSoft: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        },
       },
     },
   },

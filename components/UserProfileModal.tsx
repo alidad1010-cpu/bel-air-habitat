@@ -82,8 +82,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen, onClo
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white">Personnaliser mon profil</h3>
-                    <button onClick={onClose} className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Personnaliser mon profil</h3>
+                    <button onClick={onClose} className="text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200">
                         <X size={20} />
                     </button>
                 </div>
@@ -174,4 +174,4 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen, onClo
     );
 };
 
-export default UserProfileModal;
+export default React.memo(UserProfileModal);

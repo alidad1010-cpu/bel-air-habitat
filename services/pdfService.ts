@@ -106,7 +106,7 @@ export const generatePurchaseOrderPDF = (order: PurchaseOrder, project: Project)
     });
 
     // --- TOTALS ---
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
     const totalBoxX = pageWidth - 80;
 
     doc.setFontSize(10);

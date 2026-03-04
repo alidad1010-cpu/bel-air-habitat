@@ -16,7 +16,7 @@ export enum ContactMethod {
   WEBSITE = 'SITE_WEB',
 }
 
-export type UserRole = 'ADMIN' | 'USER';
+export type UserRole = 'ADMIN' | 'USER' | 'CLIENT' | 'PARTNER';
 
 export interface UserIntegrations {
   googleCalendarUrl?: string;
@@ -108,6 +108,9 @@ export interface Client {
   };
   tenant?: Tenant; // Optional "Locataire"
   contacts?: Contact[]; // "Interlocuteurs"
+  createdByUserId?: string;
+  userId?: string;
+  hasAccess?: boolean;
 }
 
 export interface CommercialInfo {
@@ -144,6 +147,23 @@ export interface AppNotification {
   message: string;
   projectId?: string;
   date: number;
+  read?: boolean;
+}
+
+export interface ProjectMessage {
+  id: string;
+  projectId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  message: string;
+  timestamp: number;
+  attachments?: {
+    name: string;
+    url: string;
+    type: string;
+  }[];
+  read?: boolean;
 }
 
 export interface PurchaseOrder {
@@ -232,6 +252,7 @@ export interface Project {
   closureComment?: string;
 
   createdBy?: string;
+  createdByUserId?: string;
   createdTime?: string;
   updatedBy?: string;
   systemKey?: string;
@@ -239,10 +260,72 @@ export interface Project {
   invoices?: Invoice[];
   documents?: ProjectDocument[];
   photos?: ProjectPhoto[];
+  quoteUrl?: string;
 
   // Subcontracting
   purchaseOrders?: PurchaseOrder[];
+
+  // Renovation-specific
+  phases?: ProjectPhase[];          // Phase tracking for renovation workflow
+  materials?: MaterialItem[];        // Material tracking
+  surfaceArea?: number;             // Surface en m²
+  roomTypes?: RoomType[];           // Types de pièces concernées
+  renovationType?: 'PARTIELLE' | 'COMPLETE' | 'EXTENSION' | 'NEUF';  // Type de rénovation
+  estimatedDuration?: number;       // Durée estimée en jours
+  actualDuration?: number;          // Durée réelle en jours
+  energyClass?: string;             // Classe énergétique avant (DPE)
+  targetEnergyClass?: string;       // Classe énergétique visée
 }
+
+// --- RENOVATION PHASE TRACKING ---
+
+export enum RenovationPhase {
+  DIAGNOSTIC = 'DIAGNOSTIC',        // État des lieux / Diagnostic technique
+  DEVIS = 'DEVIS',                  // Chiffrage & Devis
+  PREPARATION = 'PREPARATION',      // Préparation chantier (commandes, planning)
+  DEMOLITION = 'DEMOLITION',        // Démolition / Dépose
+  GROS_OEUVRE = 'GROS_OEUVRE',      // Gros œuvre / Maçonnerie
+  SECOND_OEUVRE = 'SECOND_OEUVRE',  // Plomberie, Électricité, Menuiserie
+  FINITIONS = 'FINITIONS',          // Peinture, Carrelage, Sols
+  NETTOYAGE = 'NETTOYAGE',         // Nettoyage fin de chantier
+  RECEPTION = 'RECEPTION',          // Réception & Levée de réserves
+}
+
+export interface ProjectPhase {
+  id: string;
+  phase: RenovationPhase;
+  label: string;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  startDate?: string;
+  endDate?: string;
+  completionPercent: number;  // 0-100
+  notes?: string;
+  assignedTo?: string;  // Employee ID
+}
+
+export interface MaterialItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;          // m², ml, unité, kg
+  unitPrice: number;
+  supplier?: string;
+  ordered: boolean;
+  delivered: boolean;
+  reference?: string;    // Référence fournisseur
+}
+
+export type RoomType =
+  | 'CUISINE'
+  | 'SALON'
+  | 'CHAMBRE'
+  | 'SDB'
+  | 'WC'
+  | 'COULOIR'
+  | 'ENTREE'
+  | 'TERRASSE'
+  | 'EXTERIEUR'
+  | 'AUTRE';
 
 export interface Invoice {
   id: string;
@@ -271,6 +354,7 @@ export interface ProjectPhoto {
   type: 'AVANT' | 'PENDANT' | 'APRES';
   date: string;
   url?: string;
+  label?: string;
 }
 
 export interface DashboardStats {
@@ -305,6 +389,7 @@ export interface Employee {
   birthDate?: string;
   documents?: EmployeeDocument[];
   isActive: boolean; // Employé actuel ou ancien
+  createdByUserId?: string;
 }
 
 // --- ADMINISTRATIVE MODULE ---
@@ -403,6 +488,7 @@ export interface Prospect {
   createdAt: number;
   lastInteraction?: number;
   source?: string; // e.g. "Import Excel", "Manuel"
+  createdByUserId?: string;
 }
 
 export interface Expense {
@@ -417,9 +503,13 @@ export interface Expense {
   notes?: string;
   vat?: number; // Montant de la TVA
   createdAt: number;
+  createdBy?: string; // Nom de l'utilisateur qui a créé la dépense
+  createdByUserId?: string; // Firebase user ID for permissions
   updatedAt?: number;
   projectId?: string; // Optional link to a project
   employeeId?: string; // Link to specific employee
+  isRecurring?: boolean;
+  recurringSourceId?: string;
 }
 
 export enum AttendanceStatus {
@@ -443,4 +533,159 @@ export interface AttendanceRecord {
   overtimeHours?: number; // Calculated
   notes?: string;
   updatedAt?: number;
+  createdByUserId?: string;
+}
+
+// --- INVOICING MODULE ---
+
+export enum DevisStatus {
+  DRAFT = 'BROUILLON',
+  SENT = 'ENVOYE',
+  ACCEPTED = 'ACCEPTE',
+  REFUSED = 'REFUSE',
+  EXPIRED = 'EXPIRE',
+}
+
+export enum FactureStatus {
+  DRAFT = 'BROUILLON',
+  SENT = 'ENVOYE',
+  PAID = 'PAYEE',
+  PARTIAL = 'PARTIELLE',
+  OVERDUE = 'RETARD',
+  CANCELLED = 'ANNULEE',
+}
+
+export enum FactureType {
+  INVOICE = 'FACTURE',
+  CREDIT_NOTE = 'AVOIR',
+  ADVANCE = 'ACOMPTE',
+}
+
+export interface DevisSection {
+  id: string;
+  title: string;
+  items: {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    total: number;
+  }[];
+}
+
+export interface FactureSection {
+  id: string;
+  title: string;
+  items: {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    total: number;
+  }[];
+}
+
+export interface Reglement {
+  id: string;
+  date: string;
+  amount: number;
+  method: 'CASH' | 'CHECK' | 'TRANSFER' | 'CARD';
+  reference?: string;
+  notes?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: number;
+  userId: string;
+  userName: string;
+  action: string;
+  details?: string;
+}
+
+export interface DocumentCounter {
+  year: number;
+  devisCounter: number;
+  factureCounter: number;
+  lastUpdated: number;
+}
+
+export interface CompanyInvoiceSettings {
+  id: string;
+  companyName: string;
+  siret: string;
+  vatNumber: string;
+  address: string;
+  zipCode: string;
+  city: string;
+  phone: string;
+  email: string;
+  logo?: string;
+  bankDetails?: {
+    iban: string;
+    bic: string;
+    bankName: string;
+  };
+  legalMentions?: string;
+  paymentTerms?: number;
+}
+
+export interface Devis {
+  id: string;
+  number: string;
+  clientId: string;
+  clientName: string;
+  clientAddress: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  projectId?: string;
+  status: DevisStatus;
+  date: string;
+  validityDate: string;
+  sections: DevisSection[];
+  totalHT: number;
+  totalTVA: number;
+  totalTTC: number;
+  notes?: string;
+  conditions?: string;
+  createdAt: number;
+  updatedAt?: number;
+  createdBy?: string;
+  sentDate?: string;
+  acceptedDate?: string;
+  refusedDate?: string;
+  auditLog?: AuditLogEntry[];
+}
+
+export interface Facture {
+  id: string;
+  number: string;
+  type: FactureType;
+  clientId: string;
+  clientName: string;
+  clientAddress: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  projectId?: string;
+  devisId?: string;
+  status: FactureStatus;
+  date: string;
+  dueDate: string;
+  sections: FactureSection[];
+  totalHT: number;
+  totalTVA: number;
+  totalTTC: number;
+  paidAmount: number;
+  remainingAmount: number;
+  reglements?: Reglement[];
+  notes?: string;
+  legalMentions?: string;
+  createdAt: number;
+  updatedAt?: number;
+  createdBy?: string;
+  sentDate?: string;
+  paidDate?: string;
+  auditLog?: AuditLogEntry[];
 }

@@ -53,7 +53,6 @@ import {
 } from '../types';
 import { uploadFileToCloud } from '../services/firebaseService';
 import { extractQuoteAmount, analyzeExpenseReceipt } from '../services/geminiService';
-import { processImageForAI } from '../utils/imageProcessor';
 import AddressAutocomplete from './AddressAutocomplete';
 import {
   subscribeToCollection,
@@ -61,6 +60,11 @@ import {
   deleteDocument,
   where,
 } from '../services/firebaseService';
+
+const processImageForAI = async (file: File): Promise<File> => {
+  const { processImageForAI: processor } = await import('../utils/imageProcessor');
+  return processor(file);
+};
 
 interface ProjectDetailProps {
   project: Project;
@@ -197,8 +201,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         notes: extractedData?.notes || prev.notes,
         vat: extractedData?.vat || prev.vat,
       }));
-    } catch (error) {
-      console.error('Expense processing error:', error);
+    } catch (_error) {
+      console.error('Expense processing error:', _error);
       alert('Erreur lors du traitement. Vous pouvez remplir manuellement.');
     } finally {
       setIsUploading(false);
@@ -310,7 +314,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const labelClass =
     'block text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase mb-1';
   const sectionTitleClass =
-    'font-bold text-slate-800 dark:text-slate-100 dark:text-white flex items-center mb-4 text-sm uppercase tracking-wide border-b border-slate-100 dark:border-slate-800 pb-2';
+    'font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4 text-sm uppercase tracking-wide border-b border-slate-100 dark:border-slate-800 pb-2';
 
   const updateField = (field: keyof Project, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -1026,8 +1030,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         setSaveStatus('modified');
         onSave(updatedProject);
       }
-    } catch (error) {
-      console.error('Error uploading photos', error);
+    } catch (_error) {
+      console.error('Error uploading photos', _error);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1183,7 +1187,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
     if (isFailedState) {
       return (
-        <span className="px-3 py-1 bg-slate-100 text-slate-700 dark:text-slate-200 dark:text-white rounded text-xs font-bold uppercase print:hidden">
+        <span className="px-3 py-1 bg-slate-100 text-slate-700 dark:text-slate-200 rounded text-xs font-bold uppercase print:hidden">
           Dossier Clos ({s})
         </span>
       );
@@ -1208,7 +1212,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             </button>
             <button
               onClick={() => setShowPrintView(false)}
-              className="bg-white dark:bg-slate-900 border-2 border-slate-200 text-slate-700 dark:text-slate-200 dark:text-white p-3 rounded-full shadow-lg hover:text-red-500 transition-colors"
+              className="bg-white dark:bg-slate-900 border-2 border-slate-200 text-slate-700 dark:text-slate-200 p-3 rounded-full shadow-lg hover:text-red-500 transition-colors"
               title="Fermer"
             >
               <X />
@@ -1220,13 +1224,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             <div className="flex justify-between items-start border-b-4 border-slate-900 pb-4 mb-6">
               <div>
                 <h1 className="text-3xl font-black uppercase tracking-tight">Fiche Chantier</h1>
-                <p className="text-slate-700 dark:text-slate-200 dark:text-white font-bold mt-1">
+                <p className="text-slate-700 dark:text-slate-200 font-bold mt-1">
                   Dossier: {formData.businessCode}
                 </p>
               </div>
               <div className="text-right">
                 <h2 className="text-xl font-bold">BEL AIR HABITAT</h2>
-                <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">
+                <p className="text-sm text-slate-700 dark:text-slate-200">
                   19 B Rue de la Tourelle, 95170 Deuil-la-Barre
                 </p>
                 <p className="text-sm font-mono mt-1">{new Date().toLocaleDateString()}</p>
@@ -1269,7 +1273,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               </h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="border p-3 rounded bg-white dark:bg-slate-900">
-                  <span className="text-xs text-slate-700 dark:text-slate-200 dark:text-white uppercase font-bold block">
+                  <span className="text-xs text-slate-700 dark:text-slate-200 uppercase font-bold block">
                     Digicode
                   </span>
                   <span className="font-mono text-xl font-bold">
@@ -1277,7 +1281,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   </span>
                 </div>
                 <div className="border p-3 rounded bg-white dark:bg-slate-900">
-                  <span className="text-xs text-slate-700 dark:text-slate-200 dark:text-white uppercase font-bold block">
+                  <span className="text-xs text-slate-700 dark:text-slate-200 uppercase font-bold block">
                     Étage / Porte
                   </span>
                   <span className="font-mono text-lg font-bold">
@@ -1285,7 +1289,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   </span>
                 </div>
                 <div className="border p-3 rounded bg-white dark:bg-slate-900">
-                  <span className="text-xs text-slate-700 dark:text-slate-200 dark:text-white uppercase font-bold block">
+                  <span className="text-xs text-slate-700 dark:text-slate-200 uppercase font-bold block">
                     Boîte à Clé
                   </span>
                   <span className="font-mono text-lg font-bold">
@@ -1309,7 +1313,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 Détail des Prestations à Réaliser (Sans Prix)
               </h3>
               {!formData.tasks || formData.tasks.length === 0 ? (
-                <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white italic">
+                <p className="text-sm text-slate-700 dark:text-slate-200 italic">
                   Aucune prestation spécifique listée.
                 </p>
               ) : (
@@ -1324,7 +1328,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       <span
                         className={
                           t.isDone
-                            ? 'line-through text-slate-700 dark:text-slate-200 dark:text-white'
+                            ? 'line-through text-slate-700 dark:text-slate-200'
                             : 'font-medium'
                         }
                       >
@@ -1338,7 +1342,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
             {/* Notes Area */}
             <div className="border-2 border-dashed border-slate-300 rounded-lg h-40 p-4 mt-auto">
-              <span className="text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase text-xs">
+              <span className="text-slate-700 dark:text-slate-200 font-bold uppercase text-xs">
                 Notes Chantier / Croquis
               </span>
             </div>
@@ -1351,7 +1355,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in print:hidden">
           <div className="bg-white dark:bg-slate-900 rounded-lg w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden relative">
             <div className="h-12 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 px-4 shrink-0">
-              <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white text-sm flex items-center truncate">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center truncate">
                 <FileText size={16} className="mr-2 text-emerald-600" />
                 {previewDoc.name}
               </h3>
@@ -1368,7 +1372,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 </a>
                 <button
                   onClick={() => setPreviewDoc(null)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-700 dark:text-slate-200 dark:text-white"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-700 dark:text-slate-200"
                 >
                   <X size={20} />
                 </button>
@@ -1389,10 +1393,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               onClick={handleBack}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
             >
-              <X size={20} className="text-slate-700 dark:text-slate-200 dark:text-white" />
+              <X size={20} className="text-slate-700 dark:text-slate-200" />
             </button>
             <div>
-              <h2 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center text-lg leading-tight">
+              <h2 className="font-bold text-slate-800 dark:text-slate-100 flex items-center text-lg leading-tight">
                 {formData.title}
                 {saveStatus === 'modified' && (
                   <span
@@ -1403,7 +1407,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 {/* Weather Widget */}
               </h2>
               <div className="flex items-center space-x-2 mt-0.5">
-                <span className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-mono">
+                <span className="text-xs text-slate-700 dark:text-slate-200 font-mono">
                   #{formData.businessCode || formData.id}
                 </span>
                 {isLate && (
@@ -1418,7 +1422,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   className={`flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ml-2 ${
                     formData.needsCallback
                       ? 'bg-red-100 text-red-700 border-red-200 animate-pulse'
-                      : 'bg-slate-100 text-slate-700 dark:text-slate-200 dark:text-white border-slate-200 hover:bg-slate-200'
+                      : 'bg-slate-100 text-slate-700 dark:text-slate-200 border-slate-200 hover:bg-slate-200'
                   }`}
                 >
                   <PhoneCall size={10} className="mr-1" />
@@ -1435,7 +1439,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             {/* Print Button */}
             <button
               onClick={handlePrint}
-              className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
+              className="p-2 text-slate-700 dark:text-slate-200 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
               title="Imprimer Fiche Chantier"
             >
               <Printer size={18} />
@@ -1444,7 +1448,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             {onDuplicate && (
               <button
                 onClick={handleDuplicate}
-                className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                className="p-2 text-slate-700 dark:text-slate-200 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                 title="Dupliquer le dossier"
               >
                 <CopyPlus size={18} />
@@ -1466,7 +1470,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             {/* DANGER ZONE: Explicit delete available here too for convenience */}
             <button
               onClick={handleDelete}
-              className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              className="p-2 text-slate-700 dark:text-slate-200 hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
             >
               <Trash2 size={18} />
             </button>
@@ -1489,7 +1493,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
                           : isCompleted
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
-                            : 'bg-slate-50 text-slate-700 dark:text-slate-200 dark:text-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
+                            : 'bg-slate-50 text-slate-700 dark:text-slate-200 border-slate-200 dark:bg-slate-900 dark:border-slate-800'
                       }`}
                     >
                       {isCompleted && !isCurrent && <Check size={12} className="mr-1" />}
@@ -1514,7 +1518,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 text-sm font-bold border-t-2 transition-colors flex items-center ${activeTab === tab.id ? 'bg-white dark:bg-slate-900 border-emerald-500 text-emerald-700 dark:text-emerald-400 border-x border-slate-200 dark:border-slate-800 rounded-t' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-t'}`}
+              className={`px-6 py-3 text-sm font-bold border-t-2 transition-colors flex items-center ${activeTab === tab.id ? 'bg-white dark:bg-slate-900 border-emerald-500 text-emerald-700 dark:text-emerald-400 border-x border-slate-200 dark:border-slate-800 rounded-t' : 'border-transparent text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-t'}`}
             >
               <tab.icon size={16} className="mr-2 opacity-70" />
               {tab.label}
@@ -1638,7 +1642,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     placeholder="Adresse d'intervention (Si différente du siège)"
                   />
                   {formData.lat && (
-                    <p className="text-[9px] text-slate-700 dark:text-slate-200 dark:text-white mt-1 flex items-center">
+                    <p className="text-[9px] text-slate-700 dark:text-slate-200 mt-1 flex items-center">
                       <MapPin size={9} className="mr-1" /> GPS: {formData.lat}, {formData.lng}
                     </p>
                   )}
@@ -1651,7 +1655,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     {formData.tags?.map((tag) => (
                       <span
                         key={tag}
-                        className="inline-flex items-center px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white text-xs font-bold border border-slate-200 dark:border-slate-600"
+                        className="inline-flex items-center px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600"
                       >
                         <Tag size={10} className="mr-1" /> {tag}
                         <button
@@ -1683,7 +1687,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 {/* Appointments Manager */}
                 <div className="pt-2">
                   <div className="flex justify-between items-center mt-4 mb-2">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center">
                       <Briefcase size={16} className="mr-2 text-indigo-500" /> Rendez-vous
                     </h3>
                     <button
@@ -1762,7 +1766,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
                     {(!formData.appointments || formData.appointments.length === 0) &&
                     !isAddingAppointment ? (
-                      <p className="text-xs text-center text-slate-700 dark:text-slate-200 dark:text-white py-2">
+                      <p className="text-xs text-center text-slate-700 dark:text-slate-200 py-2">
                         Aucun rendez-vous programmé.
                       </p>
                     ) : (
@@ -1775,21 +1779,21 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                               className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-indigo-100 dark:border-indigo-900/50 flex justify-between group"
                             >
                               <div>
-                                <div className="font-bold text-sm text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                                <div className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center">
                                   {apt.title}
                                   {new Date(apt.date) < new Date() && (
-                                    <span className="ml-2 text-[10px] bg-slate-100 text-slate-700 dark:text-slate-200 dark:text-white px-1 rounded">
+                                    <span className="ml-2 text-[10px] bg-slate-100 text-slate-700 dark:text-slate-200 px-1 rounded">
                                       Passé
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-xs text-slate-700 dark:text-slate-200 dark:text-white flex items-center mt-1">
+                                <div className="text-xs text-slate-700 dark:text-slate-200 flex items-center mt-1">
                                   <Calendar size={12} className="mr-1" />{' '}
                                   {new Date(apt.date).toLocaleDateString()}
                                   <Clock size={12} className="ml-2 mr-1" /> {apt.startTime}
                                 </div>
                                 {apt.note && (
-                                  <div className="text-xs text-slate-700 dark:text-slate-200 dark:text-white mt-1 italic line-clamp-1">
+                                  <div className="text-xs text-slate-700 dark:text-slate-200 mt-1 italic line-clamp-1">
                                     {apt.note}
                                   </div>
                                 )}
@@ -1838,7 +1842,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       <div className="relative">
                         <Key
                           size={14}
-                          className="absolute left-3 top-3 text-slate-700 dark:text-slate-200 dark:text-white"
+                          className="absolute left-3 top-3 text-slate-700 dark:text-slate-200"
                         />
                         <input
                           type="text"
@@ -1868,7 +1872,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       accept="application/pdf,image/*"
                       onChange={(e) => handleFileUpload(e, 'QUOTE')}
                       disabled={isUploading}
-                      className="block w-full text-xs text-slate-700 dark:text-slate-200 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white dark:bg-slate-900 file:text-sky-700 hover:file:bg-sky-50 cursor-pointer disabled:opacity-50"
+                      className="block w-full text-xs text-slate-700 dark:text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white dark:bg-slate-900 file:text-sky-700 hover:file:bg-sky-50 cursor-pointer disabled:opacity-50"
                     />
                     {uploadStatusMsg && (
                       <p className="text-xs text-sky-600 font-bold mt-2 animate-pulse">
@@ -1912,7 +1916,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   <div className="relative">
                     <Euro
                       size={16}
-                      className="absolute left-3 top-2.5 text-slate-700 dark:text-slate-200 dark:text-white"
+                      className="absolute left-3 top-2.5 text-slate-700 dark:text-slate-200"
                     />
                     <input
                       type="number"
@@ -1956,7 +1960,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
                 {/* --- TASKS MODULE (NEW) --- */}
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-200 dark:text-white text-sm flex items-center mb-3">
+                  <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center mb-3">
                     <ListChecks size={16} className="mr-2" /> Prestations & Tâches (Visible sur
                     Fiche Chantier)
                   </h4>
@@ -1982,16 +1986,16 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       formData.tasks.map((task) => (
                         <div
                           key={task.id}
-                          className="flex items-center group bg-white dark:bg-slate-900 dark:bg-slate-800/50 p-2 rounded border border-transparent hover:border-slate-200 transition-all"
+                          className="flex items-center group bg-white dark:bg-slate-900/50 p-2 rounded border border-transparent hover:border-slate-200 transition-all"
                         >
                           <button
                             onClick={() => toggleTask(task.id)}
-                            className={`mr-3 w-5 h-5 rounded border flex items-center justify-center transition-colors ${task.isDone ? 'bg-emerald-500 border-emerald-500 text-slate-900 dark:text-white dark:text-white' : 'border-slate-300 bg-white dark:bg-slate-900 hover:border-emerald-500'}`}
+                            className={`mr-3 w-5 h-5 rounded border flex items-center justify-center transition-colors ${task.isDone ? 'bg-emerald-500 border-emerald-500 text-slate-900 dark:text-white' : 'border-slate-300 bg-white dark:bg-slate-900 hover:border-emerald-500'}`}
                           >
                             {task.isDone && <Check size={12} />}
                           </button>
                           <span
-                            className={`flex-1 text-sm ${task.isDone ? 'text-slate-700 dark:text-slate-200 dark:text-white line-through' : 'text-slate-700 dark:text-slate-200 dark:text-white'}`}
+                            className={`flex-1 text-sm ${task.isDone ? 'text-slate-700 dark:text-slate-200 line-through' : 'text-slate-700 dark:text-slate-200'}`}
                           >
                             {task.label}
                           </span>
@@ -2004,7 +2008,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                         </div>
                       ))
                     ) : (
-                      <div className="text-xs text-slate-700 dark:text-slate-200 dark:text-white italic text-center py-2">
+                      <div className="text-xs text-slate-700 dark:text-slate-200 italic text-center py-2">
                         Aucune prestation listée.
                       </div>
                     )}
@@ -2014,7 +2018,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 {/* Reserves Section Toggle */}
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-slate-700 dark:text-slate-200 dark:text-white text-sm">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">
                       Levées de Réserves
                     </h4>
                     <button
@@ -2111,7 +2115,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                         ))}
                       </select>
                       {!newBDC.subId && (
-                        <p className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white mt-1">
+                        <p className="text-[10px] text-slate-700 dark:text-slate-200 mt-1">
                           Si le partenaire n'est pas dans la liste, ajoutez-le d'abord dans l'onglet
                           Partenaires.
                         </p>
@@ -2158,7 +2162,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     </div>
                     <div>
                       <label className={labelClass}>Tâches du projet à inclure</label>
-                      <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 p-2 rounded bg-white dark:bg-slate-900 dark:bg-slate-800">
+                      <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 p-2 rounded bg-white dark:bg-slate-900">
                         {formData.tasks?.map((task) => (
                           <label key={task.id} className="flex items-center space-x-2 text-sm">
                             <input
@@ -2198,10 +2202,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 {formData.purchaseOrders?.map((po) => (
                   <div
                     key={po.id}
-                    className="border border-slate-200 rounded-lg p-4 bg-white dark:bg-slate-900 dark:bg-slate-800/50"
+                    className="border border-slate-200 rounded-lg p-4 bg-white dark:bg-slate-900/50"
                   >
                     <div className="flex justify-between mb-2">
-                      <span className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
+                      <span className="font-bold text-slate-800 dark:text-slate-100">
                         {po.number}
                       </span>
                       <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-700 dark:text-slate-200">
@@ -2209,7 +2213,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       </span>
                     </div>
                     <p className="text-sm font-medium">{po.subcontractorName}</p>
-                    <p className="text-xs text-slate-700 dark:text-slate-200 dark:text-white mb-2">
+                    <p className="text-xs text-slate-700 dark:text-slate-200 mb-2">
                       {po.description}
                     </p>
                     <div className="font-mono font-bold text-lg mb-4">
@@ -2500,7 +2504,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                           </button>
                           <button
                             onClick={openWhatsApp}
-                            className="bg-green-500 hover:bg-green-600 text-slate-900 dark:text-white dark:text-white p-2.5 rounded-lg transition-colors flex items-center justify-center"
+                            className="bg-green-500 hover:bg-green-600 text-slate-900 dark:text-white p-2.5 rounded-lg transition-colors flex items-center justify-center"
                             title="Ouvrir WhatsApp"
                           >
                             <MessageCircle size={20} />
@@ -2739,14 +2743,14 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 </div>
                 <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:bg-slate-900/10 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-100 relative group transition-all">
                   {isUploading ? (
-                    <Loader2 className="animate-spin text-slate-700 dark:text-slate-200 dark:text-white mb-2" />
+                    <Loader2 className="animate-spin text-slate-700 dark:text-slate-200 mb-2" />
                   ) : (
                     <Upload
                       size={24}
-                      className="text-slate-700 dark:text-slate-200 dark:text-white mb-2 group-hover:scale-110 transition-transform"
+                      className="text-slate-700 dark:text-slate-200 mb-2 group-hover:scale-110 transition-transform"
                     />
                   )}
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200 dark:text-white">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                     Ajouter AUTRE
                   </span>
                   <input
@@ -2760,7 +2764,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               </div>
 
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white font-medium">
+                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium">
                   <tr>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Nom</th>
@@ -2773,7 +2777,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     <tr>
                       <td
                         colSpan={4}
-                        className="px-4 py-8 text-center text-slate-700 dark:text-slate-200 dark:text-white"
+                        className="px-4 py-8 text-center text-slate-700 dark:text-slate-200"
                       >
                         Aucun document.
                       </td>
@@ -2800,10 +2804,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                                 : doc.type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 dark:text-white">
+                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                           {doc.name}
                         </td>
-                        <td className="px-4 py-3 text-slate-700 dark:text-slate-200 dark:text-white">
+                        <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
                           {new Date(doc.date).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -2843,14 +2847,14 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     <button
                       key={tab}
                       onClick={() => setActivePhotoTab(tab as any)}
-                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activePhotoTab === tab ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-slate-900 dark:text-white dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white'}`}
+                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activePhotoTab === tab ? 'bg-white dark:bg-slate-900 shadow text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200'}`}
                     >
                       {tab}
                     </button>
                   ))}
                   <button
                     onClick={() => setActivePhotoTab('COMPARATIF')}
-                    className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activePhotoTab === 'COMPARATIF' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-indigo-600' : 'text-indigo-500'}`}
+                    className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activePhotoTab === 'COMPARATIF' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600' : 'text-indigo-500'}`}
                   >
                     COMPARATIF
                   </button>
@@ -2884,7 +2888,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               {activePhotoTab === 'COMPARATIF' ? (
                 <div className="grid grid-cols-2 gap-8 h-[400px]">
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col">
-                    <h4 className="font-bold text-center text-slate-700 dark:text-slate-200 dark:text-white mb-2">
+                    <h4 className="font-bold text-center text-slate-700 dark:text-slate-200 mb-2">
                       AVANT
                     </h4>
                     <div className="flex-1 overflow-y-auto space-y-2">
@@ -2901,14 +2905,14 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                           />
                         ))}
                       {!formData.photos?.some((p) => p.type === 'AVANT') && (
-                        <p className="text-center text-xs text-slate-700 dark:text-slate-200 dark:text-white mt-10">
+                        <p className="text-center text-xs text-slate-700 dark:text-slate-200 mt-10">
                           Aucune photo "Avant"
                         </p>
                       )}
                     </div>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col">
-                    <h4 className="font-bold text-center text-slate-700 dark:text-slate-200 dark:text-white mb-2">
+                    <h4 className="font-bold text-center text-slate-700 dark:text-slate-200 mb-2">
                       APRÈS
                     </h4>
                     <div className="flex-1 overflow-y-auto space-y-2">
@@ -2925,7 +2929,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                           />
                         ))}
                       {!formData.photos?.some((p) => p.type === 'APRES') && (
-                        <p className="text-center text-xs text-slate-700 dark:text-slate-200 dark:text-white mt-10">
+                        <p className="text-center text-xs text-slate-700 dark:text-slate-200 mt-10">
                           Aucune photo "Après"
                         </p>
                       )}
@@ -2957,7 +2961,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       </div>
                     ))}
                   {formData.photos?.filter((p) => p.type === activePhotoTab).length === 0 && (
-                    <div className="col-span-full py-12 text-center text-slate-700 dark:text-slate-200 dark:text-white border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                    <div className="col-span-full py-12 text-center text-slate-700 dark:text-slate-200 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
                       <ImageIcon size={32} className="mx-auto mb-2 opacity-50" />
                       <p>Aucune photo dans cette catégorie</p>
                     </div>
@@ -2971,10 +2975,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
           {showValidationModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 print:hidden">
               <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl p-6">
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-4">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
                   Dates des travaux
                 </h3>
-                <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white mb-4">
+                <p className="text-sm text-slate-700 dark:text-slate-200 mb-4">
                   Le devis est validé. Veuillez confirmer les dates prévues.
                 </p>
 

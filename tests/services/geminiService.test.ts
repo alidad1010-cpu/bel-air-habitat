@@ -54,7 +54,7 @@ describe('geminiService', () => {
           clientEmail: '',
           clientPhone: '',
           projectTitle: 'Nouvelle demande',
-          contactMethod: 'TELEPHONE' as any,
+          contactMethod: 'TELEPHONE' as const,
           estimatedBudget: 0,
           priority: 'Moyenne',
         };

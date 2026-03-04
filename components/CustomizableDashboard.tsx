@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { GripVertical, Settings2, RotateCcw } from 'lucide-react';
-import { Project } from '../types';
 
 export type WidgetType = 
   | 'workflow-incoming'
@@ -239,8 +238,8 @@ export function useDashboardConfig(userId?: string) {
       if (saved) {
         return JSON.parse(saved);
       }
-    } catch (e) {
-      console.warn('Failed to load dashboard config', e);
+    } catch (_e) {
+      console.warn('Failed to load dashboard config', _e);
     }
     return defaultConfigs;
   });
@@ -249,8 +248,8 @@ export function useDashboardConfig(userId?: string) {
     setConfigs(newConfigs);
     try {
       localStorage.setItem(storageKey, JSON.stringify(newConfigs));
-    } catch (e) {
-      console.warn('Failed to save dashboard config', e);
+    } catch (_e) {
+      console.warn('Failed to save dashboard config', _e);
     }
   };
 

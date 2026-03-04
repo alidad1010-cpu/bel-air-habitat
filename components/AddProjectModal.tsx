@@ -6,16 +6,13 @@ import {
   Mail,
   Phone,
   Calendar,
-  Hash,
   User,
-  MapPin,
   Briefcase,
   Sparkles,
   Wand2,
   Loader2,
   ChevronDown,
   ChevronUp,
-  Building,
 } from 'lucide-react';
 import { Project, ProjectStatus, ContactMethod, Client, Appointment } from '../types';
 import { extractProjectDetails } from '../services/geminiService';
@@ -192,8 +189,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
 
       setShowMagicInput(false);
       setMagicText('');
-    } catch (error) {
-      console.error('AI Error', error);
+    } catch (_error) {
+      console.error('AI Error', _error);
       alert("L'analyse IA a échoué. Veuillez remplir manuellement.");
     } finally {
       setIsAnalyzing(false);
@@ -292,11 +289,11 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-20">
           <div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
               Nouveau Dossier
             </h2>
             <div className="flex items-center space-x-2 text-sm mt-1">
-              <span className="text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white">
+              <span className="text-slate-700 dark:text-slate-200">
                 Référence:
               </span>
               <span className="font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-100 dark:border-emerald-800">
@@ -306,7 +303,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200 p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+            className="text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200 p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
           >
             <X size={24} />
           </button>
@@ -321,13 +318,13 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
             <div className="flex items-center font-bold">
               <Sparkles
                 size={20}
-                className={`mr-2 ${showMagicInput ? 'text-indigo-600' : 'text-slate-900 dark:text-white dark:text-white'}`}
+                className={`mr-2 ${showMagicInput ? 'text-indigo-600' : 'text-slate-900 dark:text-white'}`}
               />
               <span
                 className={
                   showMagicInput
                     ? 'text-indigo-900 dark:text-indigo-200'
-                    : 'text-slate-900 dark:text-white dark:text-white'
+                    : 'text-slate-900 dark:text-white'
                 }
               >
                 Remplissage Magique IA
@@ -336,7 +333,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
             {showMagicInput ? (
               <ChevronUp size={20} className="text-indigo-400" />
             ) : (
-              <ChevronDown size={20} className="text-slate-900 dark:text-white dark:text-white" />
+              <ChevronDown size={20} className="text-slate-900 dark:text-white" />
             )}
           </button>
 
@@ -350,7 +347,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                 value={magicText}
                 onChange={(e) => setMagicText(e.target.value)}
                 placeholder="Ex: M. Dupont (06 12 34 56 78) veut refaire sa salle de bain au 10 rue des Lilas. Budget 5000€ environ..."
-                className="w-full p-3 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 dark:text-white dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24 mb-3"
+                className="w-full p-3 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24 mb-3"
               />
               <button
                 onClick={handleMagicAnalysis}
@@ -375,7 +372,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-8 pt-2">
           {/* SECTION 1: CLIENT (BILLING/HQ) */}
           <div className="bg-slate-50/80 dark:bg-slate-800/30 p-5 rounded-xl border border-slate-200/60 dark:border-slate-600/50">
-            <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center mb-4 text-sm">
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4 text-sm">
               <div className="bg-indigo-100 dark:bg-indigo-900/50 p-1.5 rounded-lg mr-2">
                 <User size={16} className="text-indigo-600 dark:text-indigo-400" />
               </div>
@@ -396,12 +393,12 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                 />
                 {/* Autocomplete Dropdown */}
                 {showSuggestions && (
-                  <div className="absolute z-50 left-0 w-full mt-1 bg-white dark:bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                  <div className="absolute z-50 left-0 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                     {filteredClients.map((client, idx) => (
                       <div
                         key={idx}
                         onClick={() => selectClient(client)}
-                        className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer text-sm text-slate-700 dark:text-slate-200 dark:text-white flex flex-col border-b border-slate-100 dark:border-slate-600 last:border-0"
+                        className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer text-sm text-slate-700 dark:text-slate-200 flex flex-col border-b border-slate-100 dark:border-slate-600 last:border-0"
                       >
                         <div className="flex justify-between items-center">
                           <span className="font-bold">{client.name}</span>
@@ -411,7 +408,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white">
+                        <span className="text-xs text-slate-700 dark:text-slate-200">
                           {client.email} • {client.city}
                         </span>
                       </div>
@@ -425,7 +422,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                 <div className="relative">
                   <Mail
                     size={16}
-                    className="absolute left-3 top-3 text-slate-700 dark:text-slate-200 dark:text-white"
+                    className="absolute left-3 top-3 text-slate-700 dark:text-slate-200"
                   />
                   <input
                     type="email"
@@ -442,7 +439,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                 <div className="relative">
                   <Phone
                     size={16}
-                    className="absolute left-3 top-3 text-slate-700 dark:text-slate-200 dark:text-white"
+                    className="absolute left-3 top-3 text-slate-700 dark:text-slate-200"
                   />
                   <input
                     type="text"
@@ -462,7 +459,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                   className={`${inputClass} pl-9`}
                   placeholder="Adresse principale du client/entreprise"
                 />
-                <p className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white mt-1 ml-1">
+                <p className="text-[10px] text-slate-700 dark:text-slate-200 mt-1 ml-1">
                   Adresse utilisée pour la facturation.
                 </p>
               </div>
@@ -471,7 +468,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
 
           {/* SECTION 2: PROJECT & SITE ADDRESS */}
           <div>
-            <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center mb-4 text-sm px-1">
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4 text-sm px-1">
               <div className="bg-emerald-100 dark:bg-emerald-900/50 p-1.5 rounded-lg mr-2">
                 <Briefcase size={16} className="text-emerald-600 dark:text-emerald-400" />
               </div>
@@ -565,13 +562,13 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
 
                 {/* VAT RATE SELECTOR */}
                 <div className="bg-slate-50 dark:bg-slate-900/20 p-1 rounded-lg border border-slate-200 dark:border-slate-800 relative">
-                  <label className="absolute -top-2 left-2 px-1 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase rounded">
+                  <label className="absolute -top-2 left-2 px-1 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase rounded">
                     TVA & Régime
                   </label>
                   <select
                     value={formData.vatRate}
                     onChange={(e) => setFormData({ ...formData, vatRate: e.target.value })}
-                    className="w-full p-2 bg-transparent border-0 focus:ring-0 text-slate-800 dark:text-slate-100 dark:text-white dark:text-white font-bold outline-none h-10 text-sm"
+                    className="w-full p-2 bg-transparent border-0 focus:ring-0 text-slate-800 dark:text-slate-100 font-bold outline-none h-10 text-sm"
                   >
                     <option value="20">TVA 20% (Standard)</option>
                     <option value="10">TVA 10% (Rénovation)</option>
@@ -615,7 +612,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:hover:text-slate-200 font-medium px-6 py-3 mr-2"
+              className="text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200 font-medium px-6 py-3 mr-2"
             >
               Annuler
             </button>

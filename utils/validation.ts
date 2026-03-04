@@ -33,7 +33,7 @@ export const ClientTypeSchema = z.enum([
 export const PrioritySchema = z.enum(['Haute', 'Moyenne', 'Basse']);
 
 // Nested schemas
-export const ClientSchema: z.ZodType<any> = z.object({
+export const ClientSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Le nom est requis').max(200, 'Le nom est trop long'),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
@@ -48,7 +48,7 @@ export const ClientSchema: z.ZodType<any> = z.object({
   notes: z.string().max(5000).optional(),
 });
 
-export const ProjectSchema: z.ZodType<any> = z.object({
+export const ProjectSchema = z.object({
   id: z.string(),
   title: z.string().min(1, 'Le titre est requis').max(200, 'Le titre est trop long'),
   description: z.string().max(5000).optional(),
@@ -68,7 +68,7 @@ export const ProjectSchema: z.ZodType<any> = z.object({
   endDate: z.string().optional(),
 });
 
-export const ExpenseSchema: z.ZodType<any> = z.object({
+export const ExpenseSchema = z.object({
   id: z.string(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)'),
   merchant: z.string().min(1).max(200),
@@ -85,7 +85,7 @@ export const ExpenseSchema: z.ZodType<any> = z.object({
   employeeId: z.string().optional(),
 });
 
-export const EmployeeSchema: z.ZodType<any> = z.object({
+export const EmployeeSchema = z.object({
   id: z.string(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -94,7 +94,7 @@ export const EmployeeSchema: z.ZodType<any> = z.object({
   position: z.string().max(100),
   hireDate: z.string().optional(),
   salary: z.number().min(0).optional(),
-  documents: z.array(z.any()).optional(),
+  documents: z.array(z.unknown()).optional(),
 });
 
 // Helper function pour valider avec messages d'erreur utilisateur-friendly

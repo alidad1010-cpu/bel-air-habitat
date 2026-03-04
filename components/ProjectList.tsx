@@ -100,34 +100,34 @@ const ProjectList: React.FC<ProjectListProps> = ({
         <div
           key={project.id}
           style={style}
-          className={`${rowClass} border-b border-white/50 cursor-pointer transition-all hover:brightness-95 grid grid-cols-[120px_120px_200px_100px_150px_120px_140px_100px] min-w-[800px] md:min-w-0 items-center`}
+          className={`bg-gradient-to-r from-white via-indigo-50/30 to-purple-50/30 dark:from-slate-900 dark:via-indigo-950/20 dark:to-purple-950/20 border-b-2 border-indigo-100 dark:border-indigo-900 cursor-pointer transition-all hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-[1.01] grid grid-cols-[120px_120px_200px_100px_150px_120px_140px_100px] min-w-[800px] md:min-w-0 items-center`}
           onClick={() => onSelect(project)}
         >
-          <div className="px-4 py-4 whitespace-nowrap text-slate-700 dark:text-slate-200 dark:text-white font-semibold">
+          <div className="px-4 py-4 whitespace-nowrap text-slate-700 dark:text-slate-200 font-semibold">
             {new Date(project.createdAt).toLocaleDateString()}
           </div>
-          <div className="px-4 py-4 font-mono text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold">
+          <div className="px-4 py-4 font-mono text-xs text-indigo-700 dark:text-indigo-300 font-bold">
             {project.businessCode || project.id}
           </div>
           <div className="px-4 py-4 font-bold text-slate-900 dark:text-white text-base">
             {project.client.name}
             {isUrgent && (
               <span title="Relance Email Requise">
-                <Flame size={14} className="inline ml-2 text-red-500 animate-pulse" />
+                <Flame size={14} className="inline ml-2 text-red-500 animate-pulse drop-shadow-[0_0_4px_rgba(239,68,68,0.5)]" />
               </span>
             )}
             {isLate && (
               <span title="En retard">
-                <AlertCircle size={14} className="inline ml-2 text-red-600" />
+                <AlertCircle size={14} className="inline ml-2 text-red-600 drop-shadow-[0_0_4px_rgba(220,38,38,0.5)]" />
               </span>
             )}
           </div>
           <div className="px-4 py-4 hidden md:block">
-            <span className="px-2 py-1 bg-white dark:bg-slate-900/50 rounded text-xs font-medium border border-black/5">
+            <span className="px-3 py-1 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-full text-xs font-bold border-2 border-slate-300 dark:border-slate-600">
               {project.folderType || 'Particulier'}
             </span>
           </div>
-          <div className="px-4 py-4 text-slate-700 dark:text-slate-200 dark:text-white truncate max-w-[200px] hidden md:block">
+          <div className="px-4 py-4 text-slate-700 dark:text-slate-200 truncate max-w-[200px] hidden md:block">
             {(() => {
               const rawAddr =
                 project.siteAddress || project.client.city || project.client.address;
@@ -137,14 +137,14 @@ const ProjectList: React.FC<ProjectListProps> = ({
               return rawAddr.replace(/^.*,\s*/, '');
             })()}
           </div>
-          <div className="px-4 py-4 text-slate-800 dark:text-slate-100 dark:text-white font-bold">
+          <div className="px-4 py-4 text-indigo-700 dark:text-indigo-300 font-bold">
             {project.budget
               ? project.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
               : '-'}
           </div>
           <div className="px-4 py-4">
             <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wide border border-black/5 shadow-sm ${statusStyle.class}`}
+              className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wide border-2 shadow-md ${statusStyle.class}`}
             >
               {statusStyle.label}
             </span>
@@ -153,7 +153,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
             {project.status === ProjectStatus.QUOTE_SENT ? (
               <button
                 onClick={(e) => onValidate(e, project.id)}
-                className="inline-flex items-center px-3 py-1.5 bg-violet-600 text-white text-xs font-bold rounded shadow-md hover:scale-105 transition-transform"
+                className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-xs font-bold rounded-lg shadow-lg shadow-violet-500/40 hover:shadow-violet-500/60 hover:scale-105 transition-all"
               >
                 <Check size={14} className="mr-1" /> OK
               </button>
@@ -165,7 +165,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
                 e.stopPropagation();
                 onDelete(project.id);
               }}
-              className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              className="p-2 text-slate-600 dark:text-slate-400 hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-all hover:scale-110"
             >
               <Trash2 size={16} />
             </button>
@@ -178,7 +178,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
 
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-700 dark:text-slate-200 dark:text-white">
+      <div className="flex flex-col items-center justify-center py-16 text-slate-700 dark:text-slate-200">
         <Filter size={32} className="mb-2 opacity-30" />
         <p>Aucun dossier trouvé.</p>
       </div>
@@ -189,24 +189,24 @@ const ProjectList: React.FC<ProjectListProps> = ({
   const ROW_HEIGHT = 80;
 
   return (
-    <div ref={containerRef} className="h-full overflow-x-auto glass-card rounded-xl border-none flex flex-col">
+    <div ref={containerRef} className="h-full overflow-x-auto glass-card rounded-xl border-2 border-indigo-200 dark:border-indigo-800 shadow-xl shadow-indigo-500/20 flex flex-col">
       {/* Header du tableau - sticky */}
-      <div className="sticky top-0 z-10 bg-slate-50/50 dark:bg-slate-800/30 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 min-w-[800px]">
-        <div className="grid grid-cols-[120px_120px_200px_100px_150px_120px_140px_100px] text-xs text-slate-700 dark:text-slate-200 dark:text-white uppercase">
+      <div className="sticky top-0 z-10 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 backdrop-blur-md min-w-[800px]">
+        <div className="grid grid-cols-[120px_120px_200px_100px_150px_120px_140px_100px] text-xs text-white uppercase">
           <div
-            className="px-4 py-3 font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
+            className="px-4 py-3 font-bold cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => onSort('createdAt')}
           >
             Date d'ajout
           </div>
           <div
-            className="px-4 py-3 font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
+            className="px-4 py-3 font-bold cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => onSort('businessCode')}
           >
             Code Affaire
           </div>
           <div
-            className="px-4 py-3 font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
+            className="px-4 py-3 font-bold cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => onSort('client.name')}
           >
             Client
@@ -214,7 +214,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
           <div className="px-4 py-3 font-bold hidden md:block">Type</div>
           <div className="px-4 py-3 font-bold hidden md:block">Ville</div>
           <div
-            className="px-4 py-3 font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
+            className="px-4 py-3 font-bold cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => onSort('budget')}
           >
             Budget

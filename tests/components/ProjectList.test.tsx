@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ProjectList from '../../components/ProjectList';
-import { Project, ProjectStatus } from '../../types';
+import { Project, ProjectStatus, ContactMethod } from '../../types';
 
 describe('ProjectList', () => {
   const mockProjects: Project[] = [
@@ -13,9 +13,9 @@ describe('ProjectList', () => {
       id: '1',
       title: 'Test Project 1',
       description: 'Description 1',
-      client: { id: '1', name: 'Client 1', email: 'client1@test.com', phone: '123456789' },
+      client: { id: '1', name: 'Client 1', email: 'client1@test.com', phone: '123456789', address: '123 Test St' },
       status: ProjectStatus.NEW,
-      contactMethod: 'EMAIL' as any,
+      contactMethod: ContactMethod.EMAIL,
       createdAt: Date.now(),
       priority: 'Haute',
     },
@@ -23,11 +23,12 @@ describe('ProjectList', () => {
       id: '2',
       title: 'Test Project 2',
       description: 'Description 2',
-      client: { id: '2', name: 'Client 2', email: 'client2@test.com', phone: '987654321' },
+      client: { id: '2', name: 'Client 2', email: 'client2@test.com', phone: '987654321', address: '456 Test Ave' },
       status: ProjectStatus.IN_PROGRESS,
-      contactMethod: 'TELEPHONE' as any,
+      contactMethod: ContactMethod.PHONE,
       createdAt: Date.now() - 1000,
       priority: 'Moyenne',
+      budget: 10000,
     },
   ];
 

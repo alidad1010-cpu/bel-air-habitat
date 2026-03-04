@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "bel-air-habitat"
+  },
   "targets": {
     "bel-air-habitat": {
       "hosting": {

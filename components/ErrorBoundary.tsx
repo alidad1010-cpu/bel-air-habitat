@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4 text-center">
                     <h1 className="text-2xl font-bold text-red-600 mb-4">Oups, une erreur est survenue.</h1>
-                    <p className="text-slate-700 dark:text-slate-200 dark:text-white mb-6 max-w-md">
+                    <p className="text-slate-700 dark:text-slate-200 mb-6 max-w-md">
                         L'application a rencontré un problème inattendu.
                         <br />
                         {this.state.error?.message && <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded mt-2 block font-mono">{this.state.error.message}</span>}

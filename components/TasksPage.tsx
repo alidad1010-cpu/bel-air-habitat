@@ -34,8 +34,8 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
     const [monthB, setMonthB] = useState<string>('');
 
     // Styles
-    const inputClass = "w-full p-3 bg-white dark:bg-slate-900 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white dark:text-white placeholder-slate-400 text-sm";
-    const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 dark:text-white uppercase mb-1";
+    const inputClass = "w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm";
+    const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase mb-1";
 
     // --- DATA PROCESSING ---
 
@@ -183,39 +183,43 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
     const activeProjects = projects.filter(p => p.status !== ProjectStatus.COMPLETED && p.status !== ProjectStatus.CANCELLED && p.status !== ProjectStatus.LOST);
 
     return (
-        <div className="space-y-6 animate-fade-in pb-12 max-w-6xl mx-auto">
+        <div className="space-y-6 animate-fade-in-up pb-12 max-w-6xl mx-auto">
 
             {/* HEADER */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-                        <CheckSquare className="text-emerald-600 dark:text-emerald-400" size={28} />
-                    </div>
+            <div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Mes Tâches</h2>
-                        <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white">Organisation personnelle</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Mes Tâches</h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                            <span className="font-semibold text-teal-600 dark:text-teal-400">
+                                {activeTasks.length}
+                            </span>
+                            tâche{activeTasks.length > 1 ? 's' : ''} active{activeTasks.length > 1 ? 's' : ''}
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            Organisation personnelle
+                        </p>
                     </div>
-                </div>
 
-                <button
-                    onClick={() => setIsApptModalOpen(true)}
-                    className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all hover:scale-105"
-                >
-                    <Calendar size={18} className="mr-2" /> Planifier RDV
-                </button>
+                    <button
+                        onClick={() => setIsApptModalOpen(true)}
+                        className="flex items-center bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm transition-all text-sm"
+                    >
+                        <Calendar size={18} className="mr-1.5" /> Planifier RDV
+                    </button>
+                </div>
             </div>
 
             {/* TABS SWITCHER */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit">
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-fit border border-slate-200 dark:border-slate-700">
                 <button
                     onClick={() => setActiveTab('ACTIVE')}
-                    className={`flex-1 md:w-40 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center ${activeTab === 'ACTIVE' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-emerald-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:text-white dark:text-white'}`}
+                    className={`flex-1 md:w-40 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center ${activeTab === 'ACTIVE' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
                 >
                     <ListTodo size={16} className="mr-2" /> À Faire ({activeTasks.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('HISTORY')}
-                    className={`flex-1 md:w-40 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center ${activeTab === 'HISTORY' ? 'bg-white dark:bg-slate-900 dark:bg-slate-600 shadow text-emerald-600 dark:text-white dark:text-white' : 'text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:text-white dark:text-white'}`}
+                    className={`flex-1 md:w-40 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center ${activeTab === 'HISTORY' ? 'bg-gradient-to-r from-amber-600 to-orange-600 shadow-lg shadow-amber-500/40 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'}`}
                 >
                     <History size={16} className="mr-2" /> Historique
                 </button>
@@ -226,9 +230,9 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                 <div className="space-y-6 animate-in slide-in-from-left-4 fade-in">
 
                     {/* ADD TASK FORM */}
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5">
-                        <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-4 flex items-center text-sm">
-                            <Plus size={16} className="mr-2 text-emerald-500" /> NOUVELLE TÂCHE
+                    <div className="bg-gradient-to-br from-white via-amber-50/30 to-orange-50/30 dark:from-slate-900 dark:via-amber-950/20 dark:to-orange-950/20 rounded-xl shadow-lg shadow-amber-500/20 border-2 border-amber-200 dark:border-amber-800 p-5">
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center text-sm">
+                            <Plus size={16} className="mr-2 text-amber-500 drop-shadow-[0_0_4px_rgba(245,158,11,0.5)]" /> NOUVELLE TÂCHE
                         </h3>
                         <form onSubmit={handleAddTask} className="flex flex-col md:flex-row gap-4">
                             <div className="flex-1">
@@ -237,16 +241,16 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                     value={newTaskLabel}
                                     onChange={(e) => setNewTaskLabel(e.target.value)}
                                     placeholder="Description de la tâche..."
-                                    className={inputClass}
+                                    className="w-full p-3 bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/30 dark:to-orange-950/30 border-2 border-amber-200 dark:border-amber-800 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-400 outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm transition-all"
                                 />
                             </div>
                             <div className="w-full md:w-40">
-                                <input type="date" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} className={inputClass} />
+                                <input type="date" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} className="w-full p-3 bg-white dark:bg-slate-900 border-2 border-amber-200 dark:border-amber-800 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-slate-900 dark:text-white text-sm" />
                             </div>
                             <div className="w-full md:w-32">
-                                <input type="time" value={newTaskTime} onChange={(e) => setNewTaskTime(e.target.value)} className={inputClass} />
+                                <input type="time" value={newTaskTime} onChange={(e) => setNewTaskTime(e.target.value)} className="w-full p-3 bg-white dark:bg-slate-900 border-2 border-amber-200 dark:border-amber-800 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-slate-900 dark:text-white text-sm" />
                             </div>
-                            <button type="submit" className="bg-slate-900 dark:bg-slate-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-emerald-600 transition-colors shadow-lg">
+                            <button type="submit" className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 hover:scale-105">
                                 Ajouter
                             </button>
                         </form>
@@ -255,12 +259,12 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                     {/* ACTIVE LIST */}
                     <div className="space-y-3">
                         {activeTasks.length === 0 ? (
-                            <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Check size={32} className="text-emerald-500" />
+                            <div className="text-center py-16 bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/30 dark:from-slate-900 dark:via-emerald-950/20 dark:to-teal-950/20 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 shadow-lg shadow-emerald-500/20">
+                                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/40">
+                                    <Check size={32} className="text-white" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">Tout est en ordre !</h3>
-                                <p className="text-slate-700 dark:text-slate-200 dark:text-white">Aucune tâche en cours pour le moment.</p>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Tout est en ordre !</h3>
+                                <p className="text-slate-600 dark:text-slate-400">Aucune tâche en cours pour le moment.</p>
                             </div>
                         ) : (
                             activeTasks.map(task => {
@@ -270,21 +274,21 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                 const isLate = now > due;
 
                                 return (
-                                    <div key={task.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between group hover:border-emerald-500 transition-all gap-4">
+                                    <div key={task.id} className="bg-gradient-to-r from-white via-amber-50/30 to-orange-50/30 dark:from-slate-900 dark:via-amber-950/20 dark:to-orange-950/20 p-4 rounded-xl border-2 border-amber-200 dark:border-amber-800 shadow-lg shadow-amber-500/20 flex flex-col md:flex-row md:items-center justify-between group hover:shadow-amber-500/40 hover:scale-[1.01] transition-all gap-4">
                                         <div className="flex items-center space-x-4">
                                             <div className="flex flex-col space-y-2">
                                                 <button
                                                     onClick={() => updateTaskStatus(task.id, 'DONE_ON_TIME')}
-                                                    className="w-10 h-10 rounded-xl border-2 border-slate-300 dark:border-slate-600 hover:bg-emerald-500 hover:border-emerald-500 hover:text-slate-900 dark:text-white dark:text-white flex items-center justify-center transition-all text-emerald-600 dark:text-emerald-400 shadow-sm"
+                                                    className="w-10 h-10 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 hover:bg-gradient-to-br hover:from-emerald-500 hover:to-teal-500 hover:border-emerald-500 hover:text-white dark:text-white flex items-center justify-center transition-all text-emerald-600 dark:text-emerald-400 shadow-md hover:shadow-emerald-500/40 hover:scale-110"
                                                     title="Marquer comme fait"
                                                 >
                                                     <Check size={20} strokeWidth={3} />
                                                 </button>
                                             </div>
                                             <div>
-                                                <p className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white text-lg">{task.label}</p>
+                                                <p className="font-bold text-slate-800 dark:text-slate-100 text-lg">{task.label}</p>
                                                 <div className="flex items-center space-x-3 mt-1 text-sm">
-                                                    <span className={`flex items-center font-medium ${isLate ? 'text-red-600 animate-pulse' : 'text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white'}`}>
+                                                    <span className={`flex items-center font-medium ${isLate ? 'text-red-600 animate-pulse' : 'text-slate-700 dark:text-slate-200'}`}>
                                                         <Clock size={14} className="mr-1.5" />
                                                         {due.toLocaleDateString()} à {due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
@@ -305,7 +309,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
 
                                             <button
                                                 onClick={() => deleteTask(task.id)}
-                                                className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                className="p-2 text-slate-700 dark:text-slate-200 hover:text-red-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                                                 title="Supprimer définitivement (Erreur de saisie)"
                                             >
                                                 <Trash2 size={18} />
@@ -326,13 +330,13 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                     {/* STATISTICS COMPARISON MODULE */}
                     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                            <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                 <TrendingUp size={20} className="mr-2 text-indigo-500" /> Statistiques & Graphiques
                             </h3>
                         </div>
 
                         {availableMonths.length === 0 ? (
-                            <p className="text-slate-700 dark:text-slate-200 dark:text-white text-center py-4">Pas assez de données pour générer des statistiques.</p>
+                            <p className="text-slate-700 dark:text-slate-200 text-center py-4">Pas assez de données pour générer des statistiques.</p>
                         ) : (
                             <div className="space-y-6">
                                 {/* Selectors */}
@@ -366,22 +370,22 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
 
                                 {/* VISUAL GRAPHICAL COMPARISON */}
                                 <div className="border-t border-slate-100 dark:border-slate-800 pt-6">
-                                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white mb-6 flex items-center">
-                                        <BarChart3 size={16} className="mr-2 text-slate-700 dark:text-slate-200 dark:text-white" /> Graphique Comparatif
+                                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center">
+                                        <BarChart3 size={16} className="mr-2 text-slate-700 dark:text-slate-200" /> Graphique Comparatif
                                     </h4>
 
                                     {/* 1. TOTAL VOLUME */}
                                     <div className="mb-8 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
                                         <div className="flex items-center justify-between mb-3">
-                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase">Volume Total de Tâches</p>
+                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Volume Total de Tâches</p>
                                         </div>
                                         <div className="flex flex-col space-y-3">
                                             {statsA && (
                                                 <div className="flex items-center">
-                                                    <span className="w-32 text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white truncate">{statsA.label}</span>
-                                                    <div className="flex-1 bg-white dark:bg-slate-900 dark:bg-slate-800 rounded-full h-8 overflow-hidden relative mx-2 border border-slate-100 dark:border-slate-600">
+                                                    <span className="w-32 text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{statsA.label}</span>
+                                                    <div className="flex-1 bg-white dark:bg-slate-900 rounded-full h-8 overflow-hidden relative mx-2 border border-slate-100 dark:border-slate-600">
                                                         <div
-                                                            className="bg-blue-500 h-full flex items-center px-3 text-slate-900 dark:text-white dark:text-white text-xs font-bold transition-all duration-1000 ease-out"
+                                                            className="bg-blue-500 h-full flex items-center px-3 text-slate-900 dark:text-white text-xs font-bold transition-all duration-1000 ease-out"
                                                             style={{ width: `${Math.min(100, (statsA.total / Math.max(statsA.total, statsB?.total || 1)) * 100)}%` }}
                                                         >
                                                             {statsA.total}
@@ -391,10 +395,10 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                             )}
                                             {statsB && (
                                                 <div className="flex items-center">
-                                                    <span className="w-32 text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white truncate">{statsB.label}</span>
-                                                    <div className="flex-1 bg-white dark:bg-slate-900 dark:bg-slate-800 rounded-full h-8 overflow-hidden relative mx-2 border border-slate-100 dark:border-slate-600">
+                                                    <span className="w-32 text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{statsB.label}</span>
+                                                    <div className="flex-1 bg-white dark:bg-slate-900 rounded-full h-8 overflow-hidden relative mx-2 border border-slate-100 dark:border-slate-600">
                                                         <div
-                                                            className="bg-indigo-500 h-full flex items-center px-3 text-slate-900 dark:text-white dark:text-white text-xs font-bold transition-all duration-1000 ease-out"
+                                                            className="bg-indigo-500 h-full flex items-center px-3 text-slate-900 dark:text-white text-xs font-bold transition-all duration-1000 ease-out"
                                                             style={{ width: `${Math.min(100, (statsB.total / Math.max(statsA?.total || 1, statsB.total)) * 100)}%` }}
                                                         >
                                                             {statsB.total}
@@ -408,7 +412,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         {/* 2. SUCCESS RATE */}
                                         <div>
-                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase mb-2">Taux de Réussite (À l'heure)</p>
+                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase mb-2">Taux de Réussite (À l'heure)</p>
                                             <div className="space-y-4">
                                                 {statsA && (
                                                     <div className="relative pt-1">
@@ -417,7 +421,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                                             <span className="text-xs font-bold inline-block text-blue-600 dark:text-blue-400">{statsA.successRate}%</span>
                                                         </div>
                                                         <div className="overflow-hidden h-3 mb-1 text-xs flex rounded bg-blue-100 dark:bg-blue-900/30">
-                                                            <div style={{ width: `${statsA.successRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white dark:text-white justify-center bg-blue-500 transition-all duration-1000"></div>
+                                                            <div style={{ width: `${statsA.successRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white justify-center bg-blue-500 transition-all duration-1000"></div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -428,7 +432,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                                             <span className="text-xs font-bold inline-block text-indigo-600 dark:text-indigo-400">{statsB.successRate}%</span>
                                                         </div>
                                                         <div className="overflow-hidden h-3 mb-1 text-xs flex rounded bg-indigo-100 dark:bg-indigo-900/30">
-                                                            <div style={{ width: `${statsB.successRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white dark:text-white justify-center bg-indigo-500 transition-all duration-1000"></div>
+                                                            <div style={{ width: `${statsB.successRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white justify-center bg-indigo-500 transition-all duration-1000"></div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -437,33 +441,33 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
 
                                         {/* 3. LATE & MISSED RATE */}
                                         <div>
-                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase mb-2">Retards & Échecs</p>
+                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase mb-2">Retards & Échecs</p>
                                             <div className="space-y-4">
                                                 {statsA && (
                                                     <div className="relative pt-1">
                                                         <div className="flex mb-1 items-center justify-between">
-                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white">{statsA.label}</span>
+                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{statsA.label}</span>
                                                             <span className="text-xs font-bold inline-block text-red-500">{statsA.lateRate + statsA.missedRate}%</span>
                                                         </div>
                                                         <div className="overflow-hidden h-3 mb-1 text-xs flex rounded bg-slate-100 dark:bg-slate-800">
-                                                            <div style={{ width: `${statsA.lateRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white dark:text-white justify-center bg-yellow-400 transition-all duration-1000" title="En Retard"></div>
-                                                            <div style={{ width: `${statsA.missedRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white dark:text-white justify-center bg-red-500 transition-all duration-1000" title="Échec"></div>
+                                                            <div style={{ width: `${statsA.lateRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white justify-center bg-yellow-400 transition-all duration-1000" title="En Retard"></div>
+                                                            <div style={{ width: `${statsA.missedRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white justify-center bg-red-500 transition-all duration-1000" title="Échec"></div>
                                                         </div>
                                                     </div>
                                                 )}
                                                 {statsB && (
                                                     <div className="relative pt-1">
                                                         <div className="flex mb-1 items-center justify-between">
-                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 dark:text-white dark:text-white">{statsB.label}</span>
+                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{statsB.label}</span>
                                                             <span className="text-xs font-bold inline-block text-red-500">{statsB.lateRate + statsB.missedRate}%</span>
                                                         </div>
                                                         <div className="overflow-hidden h-3 mb-1 text-xs flex rounded bg-slate-100 dark:bg-slate-800">
-                                                            <div style={{ width: `${statsB.lateRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white dark:text-white justify-center bg-yellow-400 transition-all duration-1000" title="En Retard"></div>
-                                                            <div style={{ width: `${statsB.missedRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white dark:text-white justify-center bg-red-500 transition-all duration-1000" title="Échec"></div>
+                                                            <div style={{ width: `${statsB.lateRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white justify-center bg-yellow-400 transition-all duration-1000" title="En Retard"></div>
+                                                            <div style={{ width: `${statsB.missedRate}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-slate-900 dark:text-white justify-center bg-red-500 transition-all duration-1000" title="Échec"></div>
                                                         </div>
                                                     </div>
                                                 )}
-                                                <div className="flex justify-end space-x-3 text-[10px] text-slate-700 dark:text-slate-200 dark:text-white">
+                                                <div className="flex justify-end space-x-3 text-[10px] text-slate-700 dark:text-slate-200">
                                                     <div className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></div> Retard</div>
                                                     <div className="flex items-center"><div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div> Raté</div>
                                                 </div>
@@ -477,13 +481,13 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
 
                     {/* ARCHIVED LIST */}
                     <div>
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase text-xs mb-3 ml-1 flex items-center justify-between">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 uppercase text-xs mb-3 ml-1 flex items-center justify-between">
                             <span>Historique Détaillé</span>
                             <span className="bg-slate-200 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-full text-[10px]">{archivedTasks.length}</span>
                         </h3>
                         <div className="space-y-2 opacity-90">
                             {archivedTasks.length === 0 ? (
-                                <p className="text-slate-700 dark:text-slate-200 dark:text-white italic text-sm p-4">Aucune tâche dans l'historique.</p>
+                                <p className="text-slate-700 dark:text-slate-200 italic text-sm p-4">Aucune tâche dans l'historique.</p>
                             ) : (
                                 archivedTasks.map(task => (
                                     <div key={task.id} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-lg flex justify-between items-center group hover:bg-white dark:bg-slate-900 dark:hover:bg-slate-800 transition-colors">
@@ -491,11 +495,11 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                             {task.status === 'MISSED' ? (
                                                 <div className="w-6 h-6 rounded bg-red-100 flex items-center justify-center text-red-600 shrink-0"><X size={14} /></div>
                                             ) : (
-                                                <div className={`w-6 h-6 rounded flex items-center justify-center text-slate-900 dark:text-white dark:text-white shrink-0 ${task.status === 'DONE_LATE' ? 'bg-yellow-500' : 'bg-emerald-500'}`}><Check size={14} /></div>
+                                                <div className={`w-6 h-6 rounded flex items-center justify-center text-slate-900 dark:text-white shrink-0 ${task.status === 'DONE_LATE' ? 'bg-yellow-500' : 'bg-emerald-500'}`}><Check size={14} /></div>
                                             )}
                                             <div className="flex flex-col">
-                                                <span className={`text-sm font-medium ${task.status === 'MISSED' ? 'text-slate-700 dark:text-slate-200 dark:text-white line-through' : 'text-slate-800 dark:text-slate-100 dark:text-white dark:text-white'}`}>{task.label}</span>
-                                                <span className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white flex items-center mt-0.5">
+                                                <span className={`text-sm font-medium ${task.status === 'MISSED' ? 'text-slate-700 dark:text-slate-200 line-through' : 'text-slate-800 dark:text-slate-100'}`}>{task.label}</span>
+                                                <span className="text-[10px] text-slate-700 dark:text-slate-200 flex items-center mt-0.5">
                                                     {new Date(task.completedAt || task.createdAt).toLocaleDateString()}
                                                     {task.status === 'DONE_LATE' && <span className="ml-2 text-yellow-600 font-bold bg-yellow-100 px-1 rounded flex items-center"><Activity size={8} className="mr-1" /> Retard</span>}
                                                     {task.status === 'MISSED' && <span className="ml-2 text-red-500 font-bold bg-red-50 px-1 rounded flex items-center"><AlertTriangle size={8} className="mr-1" /> Raté</span>}
@@ -505,7 +509,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                                         {/* Bouton de suppression TOUJOURS visible, pas seulement au survol */}
                                         <button
                                             onClick={() => deleteTask(task.id)}
-                                            className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                            className="p-2 text-slate-700 dark:text-slate-200 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                                             title="Supprimer définitivement"
                                         >
                                             <Trash2 size={18} />
@@ -523,10 +527,10 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95">
                         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 rounded-t-2xl">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                 <Calendar size={20} className="mr-2 text-indigo-600" /> Planifier un RDV Chantier
                             </h3>
-                            <button onClick={() => setIsApptModalOpen(false)} className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200">
+                            <button onClick={() => setIsApptModalOpen(false)} className="text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200 dark:hover:text-slate-200">
                                 <X size={24} />
                             </button>
                         </div>
@@ -535,7 +539,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 mb-4">
                                 <label className={labelClass}>Lier au chantier (Requis)</label>
                                 <div className="relative">
-                                    <Search size={16} className="absolute left-3 top-3 text-slate-700 dark:text-slate-200 dark:text-white pointer-events-none" />
+                                    <Search size={16} className="absolute left-3 top-3 text-slate-700 dark:text-slate-200 pointer-events-none" />
                                     <select
                                         required
                                         value={newAppointment.projectId}
@@ -611,7 +615,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ currentUser, onUpdateUser, projec
                             </div>
 
                             <div className="flex justify-end pt-4 space-x-3 border-t border-slate-100 dark:border-slate-800 mt-4">
-                                <button type="button" onClick={() => setIsApptModalOpen(false)} className="px-4 py-2 text-slate-700 dark:text-slate-200 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Annuler</button>
+                                <button type="button" onClick={() => setIsApptModalOpen(false)} className="px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Annuler</button>
                                 <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 dark:shadow-none">
                                     Ajouter à l'Agenda
                                 </button>

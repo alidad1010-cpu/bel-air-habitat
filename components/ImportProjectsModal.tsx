@@ -171,8 +171,8 @@ const ImportProjectsModal: React.FC<ImportProjectsModalProps> = ({
       });
 
       setAnalyzedProjects(projects);
-    } catch (e) {
-      console.error(e);
+    } catch (_e) {
+      console.error(_e);
       alert("Erreur lors de l'analyse AI");
     } finally {
       setIsProcessing(false);

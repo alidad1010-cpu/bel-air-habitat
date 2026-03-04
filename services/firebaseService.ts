@@ -81,11 +81,11 @@ try {
     });
 
   // Tentative de persistance hors ligne
-  enableIndexedDbPersistence(db).catch((err) => {
+  enableIndexedDbPersistence(db).catch(() => {
     // Silently fail if persistence not supported
   });
-} catch (e) {
-  console.warn('Firebase Init Error (Offline Mode):', e);
+} catch (_e) {
+  console.warn('Firebase Init Error (Offline Mode):', _e);
 }
 
 export { db, auth, storage };
@@ -127,17 +127,24 @@ export const subscribeToCollection = (
 /**
  * Sauvegarde ou Met à jour un document (Écriture)
  */
-export const saveDocument = async (collectionName: string, docId: string, data: Record<string, unknown>) => {
+export const saveDocument = async <T extends object>(collectionName: string, docId: string, data: T) => {
+  console.log(`💾 saveDocument called: ${collectionName}/${docId}`);
+  console.log('💾 Data to save:', data);
   try {
-    if (!db) throw new Error('Database not initialized');
-    await setDoc(doc(db, collectionName, docId), data, { merge: true });
+    if (!db) {
+      console.error('❌ Database not initialized!');
+      throw new Error('Database not initialized');
+    }
+    console.log('💾 Database is initialized, calling setDoc...');
+    await setDoc(doc(db, collectionName, docId), data as Record<string, unknown>, { merge: true });
+    console.log(`✅ Document saved successfully: ${collectionName}/${docId}`);
   } catch (e: unknown) {
-    // OPTIMIZATION: Utiliser ErrorHandler pour gestion cohérente
     const error = e instanceof Error ? e : new Error('Unknown error');
+    console.error(`❌ Error saving document ${collectionName}/${docId}:`, error);
     if (import.meta.env.DEV) {
       console.warn(`[Sauvegarde Locale] Synchro Cloud impossible pour ${collectionName}/${docId}`, error);
     }
-    // Logique de retry ou queue locale pourrait être ajoutée ici
+    throw error;
   }
 };
 
@@ -168,16 +175,16 @@ export const uploadFileToCloud = async (path: string, file: File): Promise<strin
 
   const performUpload = async (attempt: number): Promise<string> => {
     try {
-      const storageRef = ref(storage, path);
+      const storageRef = ref(storage!, path);
       const snapshot = await uploadBytes(storageRef, file);
       return await getDownloadURL(snapshot.ref);
-    } catch (error) {
+    } catch (_error) {
       if (attempt < 3) {
-        console.warn(`Upload attempt ${attempt} failed, retrying...`, error);
+        console.warn(`Upload attempt ${attempt} failed, retrying...`, _error);
         await new Promise((r) => setTimeout(r, 1000 * attempt)); // Exponential backoff-ish
         return performUpload(attempt + 1);
       }
-      throw error;
+      throw _error;
     }
   };
 
@@ -188,9 +195,9 @@ export const uploadFileToCloud = async (path: string, file: File): Promise<strin
 
   try {
     return await Promise.race([performUpload(1), timeoutPromise]);
-  } catch (error) {
-    console.warn('Storage Upload Issue (will fallback to local if possible):', error);
-    throw error;
+  } catch (_error) {
+    console.warn('Storage Upload Issue (will fallback to local if possible):', _error);
+    throw _error;
   }
 };
 

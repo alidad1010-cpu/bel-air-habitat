@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { FileText, Building, Truck, Upload, AlertTriangle, CheckCircle, Clock, Trash2, ExternalLink, Plus, Save, X, Loader2 } from 'lucide-react';
+import { FileText, Building, Truck, Upload, AlertTriangle, CheckCircle, Clock, Trash2, ExternalLink, Plus, Loader2 } from 'lucide-react';
 import { CompanyAdministrativeData, AdminDocument, AdminDocType, Vehicle } from '../types';
 import { uploadFileToCloud } from '../services/firebaseService';
 
@@ -63,7 +63,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
             let url;
             try {
                 url = await uploadFileToCloud(path, file);
-            } catch (err) {
+            } catch {
                 // Fallback base64
                 url = await new Promise<string>(resolve => {
                     const reader = new FileReader();
@@ -96,8 +96,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
                 documents: [...filteredDocs, newDoc]
             });
 
-        } catch (error) {
-            console.error(error);
+        } catch (_error) {
+            console.error(_error);
             alert("Erreur lors de l'envoi.");
         } finally {
             setIsUploading(false);
@@ -155,21 +155,21 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
         return (
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
                 <div className="flex items-center space-x-3 overflow-hidden">
-                    <div className={`p-2 rounded-lg shrink-0 ${doc ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white' : 'bg-slate-50 dark:bg-slate-900 text-slate-300 border-2 border-dashed border-slate-200'}`}>
+                    <div className={`p-2 rounded-lg shrink-0 ${doc ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200' : 'bg-slate-50 dark:bg-slate-900 text-slate-300 border-2 border-dashed border-slate-200'}`}>
                         <FileText size={20} />
                     </div>
                     <div className="min-w-0">
-                        <p className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white text-sm truncate">{title}</p>
+                        <p className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{title}</p>
                         {doc ? (
                             <div className="flex items-center mt-1 space-x-2">
                                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center ${status?.color}`}>
                                     {status?.icon && <status.icon size={10} className="mr-1"/>}
                                     {status?.label}
                                 </span>
-                                <span className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white">Exp: {new Date(doc.expiryDate).toLocaleDateString()}</span>
+                                <span className="text-[10px] text-slate-700 dark:text-slate-200">Exp: {new Date(doc.expiryDate).toLocaleDateString()}</span>
                             </div>
                         ) : (
-                            <p className="text-xs text-slate-700 dark:text-slate-200 dark:text-white italic">Non importé</p>
+                            <p className="text-xs text-slate-700 dark:text-slate-200 italic">Non importé</p>
                         )}
                     </div>
                 </div>
@@ -177,10 +177,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
                 <div className="flex items-center space-x-2">
                     {doc && (
                         <>
-                            <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-emerald-600 bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
+                            <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-700 dark:text-slate-200 hover:text-emerald-600 bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
                                 <ExternalLink size={16} />
                             </a>
-                            <button onClick={() => handleDeleteDoc(doc.id)} className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500 bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
+                            <button onClick={() => handleDeleteDoc(doc.id)} className="p-2 text-slate-700 dark:text-slate-200 hover:text-red-500 bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
                                 <Trash2 size={16} />
                             </button>
                         </>
@@ -204,16 +204,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
 
             {/* HEADER */}
             <div>
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
                     <Building className="mr-3 text-emerald-600"/> 
                     Gestion Administrative
                 </h2>
-                <p className="text-slate-700 dark:text-slate-200 dark:text-white text-sm">Centralisation des documents officiels, assurances et flotte.</p>
+                <p className="text-slate-700 dark:text-slate-200 text-sm">Centralisation des documents officiels, assurances et flotte.</p>
             </div>
 
             {/* SECTION 1: OFFICIAL DOCUMENTS */}
             <section>
-                <h3 className="font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase text-xs mb-4 flex items-center">
+                <h3 className="font-bold text-slate-700 dark:text-slate-200 uppercase text-xs mb-4 flex items-center">
                     <FileText size={16} className="mr-2"/> Documents Officiels Entreprise
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -228,7 +228,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
 
             {/* SECTION 2: OFFICES */}
             <section>
-                <h3 className="font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase text-xs mb-4 flex items-center border-t border-slate-200 dark:border-slate-800 pt-6">
+                <h3 className="font-bold text-slate-700 dark:text-slate-200 uppercase text-xs mb-4 flex items-center border-t border-slate-200 dark:border-slate-800 pt-6">
                     <Building size={16} className="mr-2"/> Bureaux & Locaux
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -240,7 +240,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
              {/* SECTION 3: VEHICLES */}
              <section>
                 <div className="flex justify-between items-center mb-4 border-t border-slate-200 dark:border-slate-800 pt-6">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase text-xs flex items-center">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 uppercase text-xs flex items-center">
                         <Truck size={16} className="mr-2"/> Flotte Véhicules
                     </h3>
                     <button 
@@ -254,11 +254,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
                 {isAddingVehicle && (
                     <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl mb-4 flex flex-col md:flex-row gap-4 items-end animate-in fade-in">
                         <div className="flex-1 w-full">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase">Modèle / Nom</label>
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Modèle / Nom</label>
                             <input type="text" value={newVehicle.name} onChange={e => setNewVehicle({...newVehicle, name: e.target.value})} className="w-full p-2 rounded border border-slate-200 text-sm" placeholder="Ex: Renault Master"/>
                         </div>
                         <div className="flex-1 w-full">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white uppercase">Immatriculation</label>
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Immatriculation</label>
                             <input type="text" value={newVehicle.plate} onChange={e => setNewVehicle({...newVehicle, plate: e.target.value})} className="w-full p-2 rounded border border-slate-200 text-sm" placeholder="AA-123-BB"/>
                         </div>
                         <div className="flex space-x-2">
@@ -270,7 +270,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {safeData.vehicles.length === 0 ? (
-                        <div className="col-span-full text-center py-8 text-slate-700 dark:text-slate-200 dark:text-white italic bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200">
+                        <div className="col-span-full text-center py-8 text-slate-700 dark:text-slate-200 italic bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200">
                             Aucun véhicule enregistré.
                         </div>
                     ) : (
@@ -285,8 +285,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ data, onUpdate }) => {
                                         <Truck size={24}/>
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">{vehicle.name}</h4>
-                                        <p className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 rounded inline-block mt-1 text-slate-700 dark:text-slate-200 dark:text-white">
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{vehicle.name}</h4>
+                                        <p className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 rounded inline-block mt-1 text-slate-700 dark:text-slate-200">
                                             {vehicle.licensePlate || 'Sans plaque'}
                                         </p>
                                     </div>

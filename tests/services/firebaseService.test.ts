@@ -23,16 +23,12 @@ describe('firebaseService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      // Test de gestion d'erreur
-      // Mock Firebase pour retourner une erreur
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      
-      // Test avec données invalides
-      await saveDocument('projects', 'invalid', null as any);
-      
-      // Vérifier que l'erreur est loggée
+
+      await saveDocument('projects', 'invalid', {} as Record<string, unknown>);
+
       expect(consoleWarnSpy).toHaveBeenCalled();
-      
+
       consoleWarnSpy.mockRestore();
     });
   });

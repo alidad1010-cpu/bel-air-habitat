@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MapPin, Phone, Mail, User, Clock, Briefcase, Trash2, Plus, Edit, Save, FileText, Upload, Loader2, ExternalLink, StickyNote, Key, Shield, Tag, FileSpreadsheet, Wand2, Users } from 'lucide-react';
+import { X, MapPin, Phone, Mail, User, Clock, Briefcase, Trash2, Plus, Edit, Save, FileText, Upload, Loader2, ExternalLink, StickyNote, Key, FileSpreadsheet, Wand2, Users } from 'lucide-react';
 import { Client, Project, ProjectStatus, ClientDocument, ClientType, ContactMethod } from '../types';
 import { uploadFileToCloud } from '../services/firebaseService';
 import { parseProjectList, BulkProjectData } from '../services/geminiService';
@@ -104,7 +104,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             let url;
             try {
                 url = await uploadFileToCloud(path, file);
-            } catch (e) {
+            } catch {
                 console.warn("Cloud upload failed, fallback to local base64");
                 if (file.size > 2 * 1024 * 1024) throw new Error("Fichier trop lourd pour sauvegarde locale (Max 2Mo)");
                 url = await fileToBase64(file);
@@ -176,7 +176,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         try {
             const result = await parseProjectList(bulkText);
             setParsedProjects(result);
-        } catch (error) {
+        } catch {
             alert("Erreur d'analyse IA. Vérifiez votre texte.");
         } finally {
             setIsAnalyzingBulk(false);
@@ -234,7 +234,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                         type="text"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="text-xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white bg-slate-100 dark:bg-slate-800 border-b-2 border-emerald-500 outline-none px-2 w-full"
+                                        className="text-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 border-b-2 border-emerald-500 outline-none px-2 w-full"
                                     />
                                     <select
                                         value={formData.type || 'PARTICULIER'}
@@ -251,8 +251,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 </div>
                             ) : (
                                 <>
-                                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">{client.name}</h2>
-                                    <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-200 dark:text-white uppercase">
+                                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{client.name}</h2>
+                                    <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-200 uppercase">
                                         {getTypeLabel(formData.type)}
                                     </span>
                                 </>
@@ -263,7 +263,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         {!isEditing ? (
                             <button
                                 onClick={() => setIsEditing(true)}
-                                className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-full transition-colors"
+                                className="p-2 text-slate-700 dark:text-slate-200 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-full transition-colors"
                                 title="Éditer la fiche"
                             >
                                 <Edit size={20} />
@@ -278,14 +278,14 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         )}
                         <button
                             onClick={onDelete}
-                            className="p-2 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                            className="p-2 text-slate-700 dark:text-slate-200 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
                             title="Supprimer le client"
                         >
                             <Trash2 size={20} />
                         </button>
                         <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
                         <button onClick={handleClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
-                            <X size={24} className="text-slate-700 dark:text-slate-200 dark:text-white" />
+                            <X size={24} className="text-slate-700 dark:text-slate-200" />
                         </button>
                     </div>
                 </div>
@@ -294,25 +294,25 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-6 space-x-6 shrink-0">
                     <button
                         onClick={() => setActiveTab('INFO')}
-                        className={`py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'INFO' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200'}`}
+                        className={`py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'INFO' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200'}`}
                     >
                         Informations & Projets
                     </button>
                     <button
                         onClick={() => setActiveTab('DOCS')}
-                        className={`py-3 text-sm font-bold border-b-2 transition-colors flex items-center ${activeTab === 'DOCS' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200'}`}
+                        className={`py-3 text-sm font-bold border-b-2 transition-colors flex items-center ${activeTab === 'DOCS' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200'}`}
                     >
                         Documents & Notes
-                        <span className="ml-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                        <span className="ml-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[10px] px-1.5 py-0.5 rounded-full">
                             {(formData.documents?.length || 0)}
                         </span>
                     </button>
                     <button
                         onClick={() => setActiveTab('CONTACTS')}
-                        className={`py-3 text-sm font-bold border-b-2 transition-colors flex items-center ${activeTab === 'CONTACTS' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-700 dark:text-slate-200 dark:text-white hover:text-slate-700 dark:text-slate-200'}`}
+                        className={`py-3 text-sm font-bold border-b-2 transition-colors flex items-center ${activeTab === 'CONTACTS' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-700 dark:text-slate-200 hover:text-slate-700 dark:text-slate-200'}`}
                     >
                         Interlocuteurs
-                        <span className="ml-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 dark:text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                        <span className="ml-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[10px] px-1.5 py-0.5 rounded-full">
                             {(formData.contacts?.length || 0)}
                         </span>
                     </button>
@@ -327,12 +327,12 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 <h3 className="font-bold text-lg flex items-center">
                                     <FileSpreadsheet size={20} className="mr-2 text-indigo-600" /> Import de Masse (IA)
                                 </h3>
-                                <button onClick={() => setShowBulkImport(false)} className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500"><X /></button>
+                                <button onClick={() => setShowBulkImport(false)} className="text-slate-700 dark:text-slate-200 hover:text-red-500"><X /></button>
                             </div>
 
                             {!parsedProjects.length ? (
                                 <>
-                                    <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white mb-2">Copiez-collez vos lignes Excel/CSV ici. L'IA va structurer les données automatiquement.</p>
+                                    <p className="text-sm text-slate-700 dark:text-slate-200 mb-2">Copiez-collez vos lignes Excel/CSV ici. L'IA va structurer les données automatiquement.</p>
                                     <textarea
                                         value={bulkText}
                                         onChange={e => setBulkText(e.target.value)}
@@ -352,7 +352,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 <>
                                     <div className="mb-4 overflow-x-auto">
                                         <table className="w-full text-xs text-left border-collapse">
-                                            <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-bold text-slate-700 dark:text-slate-200 dark:text-white">
+                                            <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-bold text-slate-700 dark:text-slate-200">
                                                 <tr>
                                                     <th className="p-2 border">Code</th>
                                                     <th className="p-2 border">Client Final</th>
@@ -392,13 +392,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                             {/* Left Column: Info */}
                             <div className="space-y-6">
                                 <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
                                         <User size={18} className="mr-2 text-emerald-500" /> Coordonnées
                                     </h3>
 
                                     <div className="space-y-4">
                                         <div className="flex items-center text-sm">
-                                            <Mail size={16} className="text-slate-700 dark:text-slate-200 dark:text-white mr-3 shrink-0" />
+                                            <Mail size={16} className="text-slate-700 dark:text-slate-200 mr-3 shrink-0" />
                                             {isEditing ? (
                                                 <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
                                             ) : (
@@ -406,15 +406,15 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                             )}
                                         </div>
                                         <div className="flex items-center text-sm">
-                                            <Phone size={16} className="text-slate-700 dark:text-slate-200 dark:text-white mr-3 shrink-0" />
+                                            <Phone size={16} className="text-slate-700 dark:text-slate-200 mr-3 shrink-0" />
                                             {isEditing ? (
                                                 <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
                                             ) : (
-                                                <a href={`tel:${client.phone}`} className="text-slate-700 dark:text-slate-200 dark:text-white hover:text-emerald-600">{client.phone || 'Non renseigné'}</a>
+                                                <a href={`tel:${client.phone}`} className="text-slate-700 dark:text-slate-200 hover:text-emerald-600">{client.phone || 'Non renseigné'}</a>
                                             )}
                                         </div>
                                         <div className="flex items-start text-sm">
-                                            <MapPin size={16} className="text-slate-700 dark:text-slate-200 dark:text-white mr-3 mt-0.5 shrink-0" />
+                                            <MapPin size={16} className="text-slate-700 dark:text-slate-200 mr-3 mt-0.5 shrink-0" />
                                             {isEditing ? (
                                                 <div className="w-full space-y-2">
                                                     <AddressAutocomplete
@@ -430,12 +430,12 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                         placeholder="Adresse"
                                                     />
                                                     <div className="flex space-x-2">
-                                                        <input type="text" placeholder="CP" value={formData.zipCode} onChange={e => setFormData({ ...formData, zipCode: e.target.value })} className="w-20 p-2 text-sm border rounded-lg dark:bg-slate-800 dark:text-white dark:text-white" />
-                                                        <input type="text" placeholder="Ville" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className="flex-1 p-2 text-sm border rounded-lg dark:bg-slate-800 dark:text-white dark:text-white" />
+                                                        <input type="text" placeholder="CP" value={formData.zipCode} onChange={e => setFormData({ ...formData, zipCode: e.target.value })} className="w-20 p-2 text-sm border rounded-lg dark:bg-slate-800 dark:text-white" />
+                                                        <input type="text" placeholder="Ville" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className="flex-1 p-2 text-sm border rounded-lg dark:bg-slate-800 dark:text-white" />
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <span className="text-slate-700 dark:text-slate-200 dark:text-white">{client.address}<br />{client.zipCode} {client.city}</span>
+                                                <span className="text-slate-700 dark:text-slate-200">{client.address}<br />{client.zipCode} {client.city}</span>
                                             )}
                                         </div>
                                     </div>
@@ -443,13 +443,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
                                 {/* ACCESS CODES SECTION */}
                                 <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
                                         <Key size={18} className="mr-2 text-emerald-500" /> Codes & Accès
                                     </h3>
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Digicode</label>
+                                                <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Digicode</label>
                                                 {isEditing ? (
                                                     <input type="text" value={formData.accessCodes?.digicode || ''} onChange={(e) => updateAccessCode('digicode', e.target.value)} className={inputClass} placeholder="A1234" />
                                                 ) : (
@@ -457,7 +457,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                 )}
                                             </div>
                                             <div>
-                                                <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Étage</label>
+                                                <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Étage</label>
                                                 {isEditing ? (
                                                     <input type="text" value={formData.accessCodes?.floor || ''} onChange={(e) => updateAccessCode('floor', e.target.value)} className={inputClass} placeholder="3e G" />
                                                 ) : (
@@ -467,7 +467,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Porte</label>
+                                                <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Porte</label>
                                                 {isEditing ? (
                                                     <input type="text" value={formData.accessCodes?.door || ''} onChange={(e) => updateAccessCode('door', e.target.value)} className={inputClass} placeholder="Num/Code" />
                                                 ) : (
@@ -475,7 +475,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                 )}
                                             </div>
                                             <div>
-                                                <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Interphone</label>
+                                                <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Interphone</label>
                                                 {isEditing ? (
                                                     <input type="text" value={formData.accessCodes?.intercom || ''} onChange={(e) => updateAccessCode('intercom', e.target.value)} className={inputClass} placeholder="Nom" />
                                                 ) : (
@@ -488,23 +488,23 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
                                 {/* LOCATAIRE SECTION (New) */}
                                 <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
                                         <User size={18} className="mr-2 text-emerald-500" /> Locataire (Optionnel)
                                     </h3>
                                     <div className="space-y-4">
                                         {isEditing ? (
                                             <>
                                                 <div>
-                                                    <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Nom</label>
+                                                    <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Nom</label>
                                                     <input type="text" value={formData.tenant?.name || ''} onChange={(e) => setFormData({ ...formData, tenant: { ...(formData.tenant || {}), name: e.target.value } })} className={inputClass} placeholder="Nom du locataire" />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Tél</label>
+                                                        <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Tél</label>
                                                         <input type="tel" value={formData.tenant?.phone || ''} onChange={(e) => setFormData({ ...formData, tenant: { ...(formData.tenant || { name: '' }), phone: e.target.value } })} className={inputClass} placeholder="06..." />
                                                     </div>
                                                     <div>
-                                                        <label className="text-xs text-slate-700 dark:text-slate-200 dark:text-white font-bold uppercase">Email</label>
+                                                        <label className="text-xs text-slate-700 dark:text-slate-200 font-bold uppercase">Email</label>
                                                         <input type="email" value={formData.tenant?.email || ''} onChange={(e) => setFormData({ ...formData, tenant: { ...(formData.tenant || { name: '' }), email: e.target.value } })} className={inputClass} placeholder="@" />
                                                     </div>
                                                 </div>
@@ -527,7 +527,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                             {/* Right Column: Projects History */}
                             <div className="lg:col-span-2 space-y-4">
                                 <div className="flex justify-between items-center mb-2">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center text-lg">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center text-lg">
                                         <Clock size={20} className="mr-2 text-emerald-500" /> Historique des Dossiers
                                     </h3>
                                     <div className="flex space-x-2">
@@ -554,7 +554,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 {clientProjects.length === 0 ? (
                                     <div className="bg-white dark:bg-slate-900 rounded-xl p-12 text-center border border-slate-200 dark:border-slate-800">
                                         <Briefcase size={48} className="mx-auto text-slate-300 mb-4" />
-                                        <p className="text-slate-700 dark:text-slate-200 dark:text-white">Aucun dossier associé à ce contact.</p>
+                                        <p className="text-slate-700 dark:text-slate-200">Aucun dossier associé à ce contact.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -567,7 +567,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <div className="flex items-center space-x-2 mb-1">
-                                                            <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200 dark:text-white">#{project.businessCode || project.id}</span>
+                                                            <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">#{project.businessCode || project.id}</span>
                                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(project.status)}`}>
                                                                 {project.status.replace('_', ' ')}
                                                             </span>
@@ -575,14 +575,14 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-cyan-100 text-cyan-700">Sous-traitance</span>
                                                             )}
                                                         </div>
-                                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white group-hover:text-emerald-600 transition-colors">{project.title}</h4>
-                                                        <p className="text-sm text-slate-700 dark:text-slate-200 dark:text-white dark:text-white dark:text-white mt-1 line-clamp-1">{project.description}</p>
+                                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-600 transition-colors">{project.title}</h4>
+                                                        <p className="text-sm text-slate-700 dark:text-slate-200 mt-1 line-clamp-1">{project.description}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white">
+                                                        <div className="font-bold text-slate-800 dark:text-slate-100">
                                                             {project.budget ? project.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : '-'}
                                                         </div>
-                                                        <div className="text-xs text-slate-700 dark:text-slate-200 dark:text-white mt-1">
+                                                        <div className="text-xs text-slate-700 dark:text-slate-200 mt-1">
                                                             {new Date(project.createdAt).toLocaleDateString()}
                                                         </div>
                                                     </div>
@@ -599,7 +599,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
                             {/* Notes Section */}
                             <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center mb-4">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center mb-4">
                                     <StickyNote size={18} className="mr-2 text-emerald-500" /> Notes Privées
                                 </h3>
                                 <textarea
@@ -609,14 +609,14 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                     placeholder="Informations importantes sur le client (code porte, préférences, etc.)"
                                     className="flex-1 w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg resize-none outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                                 />
-                                <p className="text-xs text-slate-700 dark:text-slate-200 dark:text-white mt-2 text-right">Sauvegarde automatique à la sortie du champ.</p>
+                                <p className="text-xs text-slate-700 dark:text-slate-200 mt-2 text-right">Sauvegarde automatique à la sortie du champ.</p>
                             </div>
 
                             {/* Documents Section */}
                             <div className="space-y-4">
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                                        <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                             <FileText size={18} className="mr-2 text-emerald-500" /> Documents Contact
                                         </h3>
                                         <div className="relative">
@@ -639,7 +639,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
                                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
                                         {(!formData.documents || formData.documents.length === 0) ? (
-                                            <div className="text-center py-8 text-slate-700 dark:text-slate-200 dark:text-white bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                                            <div className="text-center py-8 text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
                                                 <FileText size={24} className="mx-auto mb-2 opacity-50" />
                                                 <p className="text-xs">Aucun document</p>
                                             </div>
@@ -651,8 +651,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                             <FileText size={16} className="text-emerald-600" />
                                                         </div>
                                                         <div className="truncate">
-                                                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white truncate">{doc.name}</p>
-                                                            <p className="text-[10px] text-slate-700 dark:text-slate-200 dark:text-white">{new Date(doc.date).toLocaleDateString()}</p>
+                                                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{doc.name}</p>
+                                                            <p className="text-[10px] text-slate-700 dark:text-slate-200">{new Date(doc.date).toLocaleDateString()}</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center space-x-2 shrink-0">
@@ -667,7 +667,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                                         </a>
                                                         <button
                                                             onClick={() => deleteDocument(doc.id)}
-                                                            className="p-1.5 text-slate-700 dark:text-slate-200 dark:text-white hover:text-red-500 hover:bg-red-50 rounded"
+                                                            className="p-1.5 text-slate-700 dark:text-slate-200 hover:text-red-500 hover:bg-red-50 rounded"
                                                             title="Supprimer"
                                                         >
                                                             <Trash2 size={16} />
@@ -685,7 +685,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 {activeTab === 'CONTACTS' && (
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col animate-in fade-in">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold text-slate-800 dark:text-slate-100 dark:text-white dark:text-white flex items-center">
+                            <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                 <Users size={18} className="mr-2 text-emerald-500" /> Liste des Interlocuteurs
                             </h3>
                             {isEditing && (
@@ -703,7 +703,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
                         <div className="space-y-4 overflow-y-auto pr-2">
                             {(!formData.contacts || formData.contacts.length === 0) ? (
-                                <div className="text-center py-12 text-slate-700 dark:text-slate-200 dark:text-white bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                                <div className="text-center py-12 text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
                                     <Users size={32} className="mx-auto mb-3 opacity-30" />
                                     <p className="text-sm">Aucun interlocuteur enregistré.</p>
                                     {isEditing && <p className="text-xs text-emerald-600 mt-2 font-bold">Cliquez sur "Ajouter" pour commencer</p>}

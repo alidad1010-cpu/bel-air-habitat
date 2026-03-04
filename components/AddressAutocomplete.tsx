@@ -1,6 +1,5 @@
-
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Loader2, X } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 
 interface AddressResult {
   fullAddress: string;
@@ -87,8 +86,8 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
         setSuggestions(data.features);
         setShowSuggestions(true);
       }
-    } catch (error) {
-      console.error("Address search error:", error);
+    } catch (_error) {
+      console.error("Address search error:", _error);
     } finally {
       setLoading(false);
     }
@@ -148,7 +147,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex flex-col border-b last:border-0 border-slate-100 dark:border-slate-800/50 transition-colors"
                 role="button"
               >
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200 dark:text-white">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   {feature.properties.label}
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-white">

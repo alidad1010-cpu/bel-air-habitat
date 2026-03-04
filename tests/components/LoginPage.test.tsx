@@ -46,7 +46,7 @@ describe('LoginPage', () => {
     
     const emailInput = screen.getByPlaceholderText(/identifiant|email/i);
     const passwordInput = screen.getByPlaceholderText(/mot de passe|password/i);
-    const submitButton = screen.getByRole('button', { type: 'submit' });
+    const submitButton = screen.getByRole('button', { name: /connexion|se connecter|login/i });
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });

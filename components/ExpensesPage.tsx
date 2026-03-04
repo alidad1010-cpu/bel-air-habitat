@@ -1,20 +1,22 @@
 import React, { useState, useMemo, useRef } from 'react';
-import ErrorHandler from '../services/errorService';
-import {
-    Receipt, Upload, Plus, DollarSign, TrendingUp, TrendingDown,
-    FileText, Trash2, Edit2, X, PieChart, Printer
-} from 'lucide-react';
+import { Plus, Upload, X, DollarSign, FileText, Receipt, TrendingUp, TrendingDown, PieChart, Printer, Edit2, Trash2 } from 'lucide-react';
 import { Expense, ExpenseCategory, ExpenseType } from '../types';
-import { analyzeExpenseReceipt } from '../services/geminiService';
+import { uploadFileToCloud } from '../services/firebaseService';
+import { analyzeExpenseReceipt } from '../services/routellmService';
+import ErrorHandler from '../services/errorService';
+import { FixedSizeList as List } from 'react-window';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { uploadFileToCloud } from '../services/firebaseService';
-import { processImageForAI } from '../utils/imageProcessor';
+
+const processImageForAI = async (file: File): Promise<File> => {
+  const { processImageForAI: processor } = await import('../utils/imageProcessor');
+  return processor(file);
+};
 
 interface ExpensesPageProps {
     expenses: Expense[];
-    onAddExpense: (expense: Expense) => void;
-    onUpdateExpense: (expense: Expense) => void;
+    onAddExpense: (expense: Expense) => Promise<void>;
+    onUpdateExpense: (expense: Expense) => Promise<void>;
     onDeleteExpense: (id: string) => void;
 }
 
@@ -102,17 +104,31 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
 
             // 3. Analyze (Try AI, but don't block if it fails)
             let extractedData = null;
-            
+
             try {
                 console.log('🤖 Tentative d\'analyse IA...');
+                console.log('📄 File type:', processedFile.type);
+                console.log('📄 File name:', processedFile.name);
+                console.log('📄 File size:', processedFile.size, 'bytes');
+
                 extractedData = await analyzeExpenseReceipt(processedFile);
+
                 if (extractedData) {
                     console.log('✅ Analyse IA réussie !', extractedData);
+                    console.log('📊 Extracted data details:');
+                    console.log('  - Date:', extractedData.date);
+                    console.log('  - Merchant:', extractedData.merchant);
+                    console.log('  - Amount:', extractedData.amount);
+                    console.log('  - Category:', extractedData.category);
+                    console.log('  - Type:', extractedData.type);
+                    console.log('  - VAT:', extractedData.vat);
+                    console.log('  - Notes:', extractedData.notes);
                 } else {
                     console.log('⚠️ Analyse IA retourné null - Saisie manuelle');
                 }
             } catch (aiError) {
-                console.warn('⚠️ Scanner IA ignoré (erreur):', aiError);
+                console.error('❌ Scanner IA erreur complète:', aiError);
+                console.error('❌ Error stack:', aiError instanceof Error ? aiError.stack : 'No stack');
                 // Continue sans bloquer l'utilisateur
             }
 
@@ -129,20 +145,40 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                 vat: extractedData?.vat || 0
             };
 
+            console.log('📝 Opening modal with expense data:', newExpense);
             setEditingExpense(newExpense);
             setIsModalOpen(true);
-        } catch (error) {
+        } catch (_error) {
             // OPTIMIZATION: Use ErrorHandler for consistent error management
-            ErrorHandler.handleAndShow(error, 'ExpensesPage - Critical Error');
+            ErrorHandler.handleAndShow(_error, 'ExpensesPage - Critical Error');
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingExpense) return;
+        console.log('🔵 handleSubmit called');
+        console.log('🔵 editingExpense:', editingExpense);
+
+        if (!editingExpense) {
+            console.log('❌ No editingExpense - returning early');
+            return;
+        }
+
+        console.log('💾 Attempting to save expense...');
+        console.log('📝 Editing expense data:', editingExpense);
+        console.log('📝 Required fields check:');
+        console.log('  - date:', editingExpense.date);
+        console.log('  - merchant:', editingExpense.merchant);
+        console.log('  - amount:', editingExpense.amount);
+
+        if (!editingExpense.date || !editingExpense.merchant || !editingExpense.amount) {
+            console.error('❌ Missing required fields!');
+            alert('Veuillez remplir tous les champs obligatoires (Date, Marchand, Montant)');
+            return;
+        }
 
         const expenseToSave: Expense = {
             id: editingExpense.id || Date.now().toString(),
@@ -155,16 +191,29 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
             category: editingExpense.category || ExpenseCategory.OTHER,
             type: editingExpense.type || ExpenseType.VARIABLE,
             notes: editingExpense.notes,
-            receiptUrl: editingExpense.receiptUrl
+            receiptUrl: editingExpense.receiptUrl,
+            isRecurring: (editingExpense.type || ExpenseType.VARIABLE) === ExpenseType.FIXED ? true : editingExpense.isRecurring,
+            recurringSourceId: editingExpense.recurringSourceId
         };
 
-        if (editingExpense.id) {
-            onUpdateExpense(expenseToSave);
-        } else {
-            onAddExpense(expenseToSave);
+        console.log('💾 Expense to save:', expenseToSave);
+        console.log('💾 Is update?', !!editingExpense.id);
+
+        try {
+            if (editingExpense.id) {
+                console.log('💾 Calling onUpdateExpense...');
+                await onUpdateExpense(expenseToSave);
+            } else {
+                console.log('💾 Calling onAddExpense...');
+                await onAddExpense(expenseToSave);
+            }
+            console.log('✅ Save function called successfully');
+            setIsModalOpen(false);
+            setEditingExpense(null);
+        } catch (error) {
+            console.error('❌ Error saving expense:', error);
+            alert('Erreur lors de la sauvegarde: ' + (error instanceof Error ? error.message : String(error)));
         }
-        setIsModalOpen(false);
-        setEditingExpense(null);
     };
 
     const generatePDF = () => {
@@ -195,60 +244,59 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
     };
 
     return (
-        <div className="p-6 md:p-8 space-y-8 pb-24 animate-fade-in-up">
+        <div className="space-y-6 pb-16 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
-                        <DollarSign className="text-emerald-500" size={32} />
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                         Gestion des Dépenses
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Suivez et analysez vos coûts fixes et variables.
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Suivez et analysez vos coûts fixes et variables
                     </p>
                 </div>
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                    <button onClick={handlePrevMonth} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"><TrendingDown className="rotate-90" size={20} /></button>
-                    <div className="px-4 py-2 font-bold min-w-[150px] text-center capitalize">
+                <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-soft">
+                    <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"><TrendingDown className="rotate-90" size={18} /></button>
+                    <div className="px-4 py-2 font-semibold text-sm min-w-[140px] text-center capitalize text-slate-900 dark:text-white">
                         {currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                     </div>
-                    <button onClick={handleNextMonth} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"><TrendingUp className="rotate-90" size={20} /></button>
+                    <button onClick={handleNextMonth} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"><TrendingUp className="rotate-90" size={18} /></button>
                 </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="glass-card p-6 rounded-2xl border-l-4 border-indigo-500 flex flex-col justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-soft">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Total Mensuel</p>
-                            <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-2">{stats.currentTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Mensuel</p>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1.5">{stats.currentTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</h3>
                         </div>
-                        <div className={`p-3 rounded-xl ${stats.progress >= 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                            {stats.progress >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                        <div className={`p-2.5 rounded-xl ${stats.progress >= 0 ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400' : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'}`}>
+                            {stats.progress >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                         </div>
                     </div>
-                    <p className={`text-xs font-bold mt-4 ${stats.progress >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    <p className={`text-xs font-semibold mt-3 ${stats.progress >= 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {stats.progress > 0 ? '+' : ''}{Math.round(stats.progress)}% par rapport au mois dernier
                     </p>
                 </div>
 
-                <div className="glass-card p-6 rounded-2xl border-l-4 border-sky-500">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Dépenses Fixes</p>
-                        <PieChart className="text-sky-500" size={20} />
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-soft">
+                    <div className="flex justify-between items-start mb-1.5">
+                        <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Dépenses Fixes</p>
+                        <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/30"><PieChart className="text-blue-600 dark:text-blue-400" size={16} /></div>
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 dark:text-white">{stats.fixed.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</h3>
-                    <p className="text-slate-400 text-xs mt-2">Loyer, Assurances, Abonnements</p>
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{stats.fixed.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</h3>
+                    <p className="text-slate-400 text-xs mt-1.5">Loyer, Assurances, Abonnements</p>
                 </div>
 
-                <div className="glass-card p-6 rounded-2xl border-l-4 border-amber-500">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Dépenses Variables</p>
-                        <Receipt className="text-amber-500" size={20} />
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-soft">
+                    <div className="flex justify-between items-start mb-1.5">
+                        <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Dépenses Variables</p>
+                        <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30"><Receipt className="text-amber-600 dark:text-amber-400" size={16} /></div>
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 dark:text-white">{stats.variable.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</h3>
-                    <p className="text-slate-400 text-xs mt-2">Carburant, Matériel, Resto</p>
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{stats.variable.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</h3>
+                    <p className="text-slate-400 text-xs mt-1.5">Carburant, Matériel, Resto</p>
                 </div>
             </div>
 
@@ -265,7 +313,7 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                                 handleFileUpload({ target: { files: e.dataTransfer.files } } as any);
                             }
                         }}
-                        className="h-full min-h-[200px] border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-2xl flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all group"
+                        className="h-full min-h-[200px] border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 rounded-2xl flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:bg-teal-50/50 dark:hover:bg-teal-950/20 hover:border-teal-300 dark:hover:border-teal-700 transition-all group"
                     >
                         <input
                             type="file"
@@ -310,9 +358,33 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                             {currentMonthExpenses.filter(e => e.type === ExpenseType.VARIABLE).length === 0 && (
                                 <div className="p-8 text-center text-slate-400 italic text-sm">Aucune dépense variable ce mois-ci</div>
                             )}
-                            {currentMonthExpenses.filter(e => e.type === ExpenseType.VARIABLE).map(expense => (
-                                <ExpenseItem key={expense.id} expense={expense} onEdit={() => { setEditingExpense(expense); setIsModalOpen(true); }} onDelete={() => onDeleteExpense(expense.id)} />
-                            ))}
+                            {(() => {
+                                const variableExpenses = currentMonthExpenses.filter(e => e.type === ExpenseType.VARIABLE);
+                                if (variableExpenses.length > 10) {
+                                    return (
+                                        <List
+                                            height={400}
+                                            itemCount={variableExpenses.length}
+                                            itemSize={72}
+                                            width="100%"
+                                        >
+                                            {({ index, style }) => (
+                                                <div style={style}>
+                                                    <ExpenseItem
+                                                        key={variableExpenses[index].id}
+                                                        expense={variableExpenses[index]}
+                                                        onEdit={() => { setEditingExpense(variableExpenses[index]); setIsModalOpen(true); }}
+                                                        onDelete={() => onDeleteExpense(variableExpenses[index].id)}
+                                                    />
+                                                </div>
+                                            )}
+                                        </List>
+                                    );
+                                }
+                                return variableExpenses.map(expense => (
+                                    <ExpenseItem key={expense.id} expense={expense} onEdit={() => { setEditingExpense(expense); setIsModalOpen(true); }} onDelete={() => onDeleteExpense(expense.id)} />
+                                ));
+                            })()}
                         </div>
                     </div>
 
@@ -326,9 +398,33 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                             {currentMonthExpenses.filter(e => e.type === ExpenseType.FIXED).length === 0 && (
                                 <div className="p-8 text-center text-slate-400 italic text-sm">Aucune charge fixe ce mois-ci</div>
                             )}
-                            {currentMonthExpenses.filter(e => e.type === ExpenseType.FIXED).map(expense => (
-                                <ExpenseItem key={expense.id} expense={expense} onEdit={() => { setEditingExpense(expense); setIsModalOpen(true); }} onDelete={() => onDeleteExpense(expense.id)} />
-                            ))}
+                            {(() => {
+                                const fixedExpenses = currentMonthExpenses.filter(e => e.type === ExpenseType.FIXED);
+                                if (fixedExpenses.length > 10) {
+                                    return (
+                                        <List
+                                            height={400}
+                                            itemCount={fixedExpenses.length}
+                                            itemSize={72}
+                                            width="100%"
+                                        >
+                                            {({ index, style }) => (
+                                                <div style={style}>
+                                                    <ExpenseItem
+                                                        key={fixedExpenses[index].id}
+                                                        expense={fixedExpenses[index]}
+                                                        onEdit={() => { setEditingExpense(fixedExpenses[index]); setIsModalOpen(true); }}
+                                                        onDelete={() => onDeleteExpense(fixedExpenses[index].id)}
+                                                    />
+                                                </div>
+                                            )}
+                                        </List>
+                                    );
+                                }
+                                return fixedExpenses.map(expense => (
+                                    <ExpenseItem key={expense.id} expense={expense} onEdit={() => { setEditingExpense(expense); setIsModalOpen(true); }} onDelete={() => onDeleteExpense(expense.id)} />
+                                ));
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -416,6 +512,21 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
                                 />
                             </div>
 
+                            {editingExpense?.type === ExpenseType.FIXED && (
+                                <div className="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                                    <input
+                                        type="checkbox"
+                                        id="isRecurring"
+                                        checked={editingExpense?.isRecurring || false}
+                                        onChange={e => setEditingExpense(prev => ({ ...prev, isRecurring: e.target.checked }))}
+                                        className="w-4 h-4 text-indigo-600 rounded"
+                                    />
+                                    <label htmlFor="isRecurring" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        🔄 Dépense récurrente (se répète automatiquement chaque mois)
+                                    </label>
+                                </div>
+                            )}
+
                             <div className="pt-4 flex justify-end gap-3">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Annuler</button>
                                 <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/30">
@@ -431,7 +542,7 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ expenses, onAddExpense, onU
     );
 };
 
-const ExpenseItem = ({ expense, onEdit, onDelete }: { expense: Expense, onEdit: () => void, onDelete: () => void }) => {
+const ExpenseItem = React.memo(({ expense, onEdit, onDelete }: { expense: Expense, onEdit: () => void, onDelete: () => void }) => {
     return (
         <div className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
             <div className="flex items-center gap-4">
@@ -443,11 +554,26 @@ const ExpenseItem = ({ expense, onEdit, onDelete }: { expense: Expense, onEdit: 
                     {!Object.values(ExpenseCategory).includes(expense.category as any) && <FileText size={18} />}
                 </div>
                 <div>
-                    <div className="font-bold text-slate-800 dark:text-white">{expense.merchant}</div>
+                    <div className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        {expense.merchant}
+                        {expense.isRecurring && (
+                            <span className="text-xs px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full font-medium">
+                                🔄 Récurrent
+                            </span>
+                        )}
+                    </div>
                     <div className="text-xs text-slate-500 flex gap-2">
                         <span>{new Date(expense.date).toLocaleDateString()}</span>
                         <span>•</span>
                         <span>{expense.category}</span>
+                        {expense.createdBy && (
+                            <>
+                                <span>•</span>
+                                <span title={`Ajouté le ${new Date(expense.createdAt).toLocaleString()}`}>
+                                    👤 {expense.createdBy}
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -474,6 +600,8 @@ const ExpenseItem = ({ expense, onEdit, onDelete }: { expense: Expense, onEdit: 
             </div>
         </div>
     );
-};
+});
+
+ExpenseItem.displayName = 'ExpenseItem';
 
 export default ExpensesPage;
